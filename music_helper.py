@@ -74,7 +74,7 @@ def album_cover(client, album_id):
             timeout=4,
         ) as response:
             data = response.read(512 * 1024 + 1)
-        if not data.startswith(b"\\xff\\xd8") or len(data) > 512 * 1024:
+        if not data.startswith(bytes.fromhex("ff d8")) or len(data) > 512 * 1024:
             return ""
         with NamedTemporaryFile(dir=directory, delete=False) as temp:
             temp.write(data)
