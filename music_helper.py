@@ -123,7 +123,12 @@ def main():
         query.update(StartIndex=len(rows), Limit=100)
         page = client.request_json(f"{path}?{urlencode(query)}")
         items = page["Items"]
-        rows.extend({"id": item["Id"], "name": item["Name"]} for item in items)
+        for item in items:
+            row = {"id": item["Id"], "name": item["Name"]}
+            if args.action == "tracks":
+                row.update(artists=item.get("Artists") or [],
+                           lengthUs=(item.get("RunTimeTicks") or 0) // 10)
+            rows.append(row)
         if not items or len(rows) >= page.get("TotalRecordCount", float("inf")):
             break
     if args.action == "play-album":

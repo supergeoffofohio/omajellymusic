@@ -379,6 +379,38 @@ Panel {
       property bool queueOpen: false
       property bool paused: false
 
+      function publishMedia() {
+        let row = queue[position]
+        if (!row || !mediaBridge.running) return
+        mediaBridge.write(JSON.stringify({
+          id: row.id, title: row.name, album: albumTitle,
+          artists: row.artists && row.artists.length ? row.artists : [artistName],
+          length: row.lengthUs || 0, cover: artwork,
+          previous: position > 0, next: position + 1 < queue.length
+        }) + "\n")
+      }
+
+      Process {
+        id: mediaBridge
+        command: ["/usr/bin/python", JellyCore.JellyfinState.pluginRoot + "/music_mpris.py"]
+        stdinEnabled: true
+        running: musicPane.queue.length > 0
+        onStarted: musicPane.publishMedia()
+        stdout: SplitParser {
+          onRead: data => {
+            if (data === "Next") musicPane.jump(musicPane.position + 1)
+            else if (data === "Previous") musicPane.jump(musicPane.position - 1)
+            else if (data === "Stop") {
+              musicPane.pendingPlay = null
+              musicPane.queue = []
+              musicPane.position = -1
+              musicPane.nowPlaying = false
+              if (player.running) player.signal(15)
+            }
+          }
+        }
+      }
+
       function beginQueue(all, row) {
         queue = all ? rows.slice() : [row]
         albumTitle = page.title
@@ -436,6 +468,7 @@ Panel {
         if (!next) return
         pendingPlay = null
         message = ""
+        Qt.callLater(publishMedia)
         playingTitle = next.title
         player.command = ["python", helper, next.action, next.key]
         player.running = true
@@ -493,7 +526,7 @@ Panel {
             musicPane.queue = []
             musicPane.position = -1
             musicPane.nowPlaying = false
-            if (code !== 0) musicPane.message = "Playback failed."
+            if (code !== 0 && status === 0) musicPane.message = "Playback failed."
           }
         }
       }
