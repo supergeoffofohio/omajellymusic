@@ -370,6 +370,52 @@ Panel {
         browse.running = true
       }
 
+      property var queue: []
+      property int position: -1
+      property string albumTitle: ""
+      property string artistName: ""
+      property string artwork: ""
+      property bool nowPlaying: false
+      property bool queueOpen: false
+      property bool paused: false
+
+      function beginQueue(all, row) {
+        queue = all ? rows.slice() : [row]
+        albumTitle = page.title
+        artistName = trail.length > 1 ? trail[trail.length - 2].title : ""
+        artwork = rows.length ? (rows[0].cover || "") : ""
+        queueOpen = false
+        nowPlaying = true
+        jump(0)
+      }
+
+      function jump(index) {
+        if (index < 0 || index >= queue.length) return
+        position = index
+        paused = false
+        requestPlay("play", queue[index].id, queue[index].name)
+      }
+
+      Process {
+        id: pauseControl
+        command: ["python", musicPane.helper, "play-pause"]
+        onExited: { if (!pauseProbe.running) pauseProbe.running = true }
+      }
+      Process {
+        id: pauseProbe
+        command: ["python", musicPane.helper, "paused"]
+        stdout: StdioCollector {
+          onStreamFinished: { if (text.trim()) musicPane.paused = text.trim() === "true" }
+        }
+      }
+      Timer {
+        interval: 900
+        repeat: true
+        triggeredOnStart: true
+        running: root.opened && musicPane.nowPlaying && player.running
+        onTriggered: { if (!pauseProbe.running) pauseProbe.running = true }
+      }
+
       property var pendingPlay: null
       property bool switchingPlayer: false
 
@@ -397,7 +443,7 @@ Panel {
 
       function selectRow(row) {
         if (page.action === "tracks") {
-          requestPlay("play", row.id, row.name)
+          beginQueue(false, row)
           return
         }
         let next = page.action === "artists" ? "albums" : "tracks"
@@ -408,6 +454,10 @@ Panel {
       Connections {
         target: root
         function onOpenedChanged() {
+          if (root.opened && musicPane.queue.length) {
+            musicPane.nowPlaying = true
+            musicPane.queueOpen = false
+          }
           if (root.opened && !musicPane.rows.length && !browse.running)
             musicPane.loadPage()
         }
@@ -437,12 +487,96 @@ Panel {
           musicPane.playingTitle = ""
           if (musicPane.pendingPlay) {
             Qt.callLater(function() { musicPane.startPending() })
-          } else if (code !== 0) {
-            musicPane.message = "Playback failed."
+          } else if (code === 0 && musicPane.position + 1 < musicPane.queue.length) {
+            musicPane.jump(musicPane.position + 1)
+          } else {
+            musicPane.queue = []
+            musicPane.position = -1
+            musicPane.nowPlaying = false
+            if (code !== 0) musicPane.message = "Playback failed."
           }
         }
       }
 
+      Column {
+        visible: musicPane.nowPlaying
+        width: parent.width
+        spacing: Style.space(6)
+        Row {
+          width: parent.width
+          spacing: Style.space(10)
+          Image {
+            id: nowArt
+            width: Style.space(76)
+            height: width
+            visible: status === Image.Ready
+            source: musicPane.artwork
+            fillMode: Image.PreserveAspectFit
+          }
+          Column {
+            width: parent.width - (nowArt.visible ? nowArt.width + parent.spacing : 0)
+            anchors.verticalCenter: parent.verticalCenter
+            Repeater {
+              model: [musicPane.queue[musicPane.position]?.name || "", musicPane.artistName, musicPane.albumTitle]
+              Text {
+                required property string modelData
+                required property int index
+                width: parent.width
+                text: modelData
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                font.bold: index === 0
+                font.pixelSize: Style.font.bodySmall
+                color: root.contentForeground
+              }
+            }
+          }
+        }
+        Flow {
+          width: parent.width
+          spacing: 4
+          Repeater {
+            model: ["Previous", musicPane.paused ? "Play" : "Pause", "Next", "Queue", "Library"]
+            QQC.Button {
+              required property int index
+              required property string modelData
+              text: modelData
+              font.pixelSize: Style.font.bodySmall
+              enabled: index === 0 ? musicPane.position > 0
+                : index === 2 ? musicPane.position + 1 < musicPane.queue.length : true
+              onClicked: {
+                if (index === 0) musicPane.jump(musicPane.position - 1)
+                else if (index === 1 && !pauseControl.running) pauseControl.running = true
+                else if (index === 2) musicPane.jump(musicPane.position + 1)
+                else if (index === 3) musicPane.queueOpen = !musicPane.queueOpen
+                else if (index === 4) musicPane.nowPlaying = false
+              }
+            }
+          }
+        }
+        ListView {
+          visible: musicPane.queueOpen
+          width: parent.width
+          height: Math.min(contentHeight, Style.space(230))
+          clip: true
+          model: musicPane.queue
+          currentIndex: musicPane.position
+          QQC.ScrollBar.vertical: QQC.ScrollBar {}
+          delegate: QQC.ItemDelegate {
+            required property int index
+            required property var modelData
+            width: ListView.view.width
+            highlighted: index === musicPane.position
+            text: (index + 1) + ".  " + modelData.name
+            font.pixelSize: Style.font.bodySmall
+            onClicked: musicPane.jump(index)
+          }
+        }
+      }
+      Column {
+        width: parent.width
+        spacing: 6
+        visible: !musicPane.nowPlaying
       Row {
         width: parent.width
         spacing: Style.space(8)
@@ -490,7 +624,7 @@ Panel {
           visible: musicPane.page.action === "tracks"
           enabled: !browse.running && musicPane.rows.length > 0
           onClicked: {
-            musicPane.requestPlay("play-album", musicPane.page.key, musicPane.page.title)
+            musicPane.beginQueue(true, null)
           }
         }
       }
@@ -529,6 +663,7 @@ Panel {
           }
           onClicked: musicPane.selectRow(modelData)
         }
+      }
       }
     }
 
