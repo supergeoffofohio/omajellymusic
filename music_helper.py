@@ -16,20 +16,23 @@ def control_socket():
     return f"/run/user/{os.getuid()}/omajelly-music.sock"
 
 
-def toggle_pause():
+def player_command(read_pause=False):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(2)
         try:
             client.connect(control_socket())
         except (FileNotFoundError, ConnectionRefusedError):
             raise SystemExit("No active OmaJelly music player.")
-        client.sendall(b'{"command":["cycle","pause"],"request_id":1}\n')
+        command = ["get_property", "pause"] if read_pause else ["cycle", "pause"]
+        client.sendall((json.dumps({"command": command, "request_id": 1}) + "\n").encode())
         with client.makefile("rb") as replies:
             for line in replies:
                 reply = json.loads(line)
                 if reply.get("request_id") == 1:
                     if reply.get("error") != "success":
                         raise SystemExit(f"mpv: {reply.get('error')}")
+                    if read_pause:
+                        print(json.dumps(reply["data"]))
                     return 0
         raise SystemExit("mpv closed the connection before replying.")
 
@@ -67,7 +70,7 @@ def album_cover(client, album_id):
 
     directory = Path(os.environ["XDG_RUNTIME_DIR"]) / "omajelly-art"
     directory.mkdir(mode=0o700, exist_ok=True)
-    target = directory / "cover.jpg"
+    target = directory / (album_id + ".jpg")
     try:
         with client.open(
             f"/Items/{album_id}/Images/Primary?maxWidth=160&maxHeight=160&format=jpg",
@@ -86,13 +89,13 @@ def album_cover(client, album_id):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["artists", "albums", "tracks", "play", "play-pause", "play-album"])
+    parser.add_argument("action", choices=["artists", "albums", "tracks", "play", "play-pause", "paused", "play-album"])
     parser.add_argument("item_id", nargs="?")
     args = parser.parse_args()
     if args.action in ("play", "play-album"):
         prepare_playback_session()
-    if args.action == "play-pause":
-        return toggle_pause()
+    if args.action in ("play-pause", "paused"):
+        return player_command(read_pause=args.action == "paused")
     if args.action != "artists" and not args.item_id:
         parser.error(f"{args.action} requires an item ID")
     item_id = valid_item_id(args.item_id) if args.item_id else None
