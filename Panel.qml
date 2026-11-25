@@ -342,7 +342,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(430))
+    contentWidth: panel.fittedContentWidth(Style.space(musicPane.nowPlaying && !root.settingsOpen ? 360 : 430))
     contentHeight: panel.fittedContentHeight(
       root.settingsOpen ? settingsOverlay.contentImplicitHeight : musicPane.implicitHeight,
       Style.space(760)
