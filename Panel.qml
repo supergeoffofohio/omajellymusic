@@ -631,6 +631,15 @@ Panel {
           }
         }
         QQC.Button {
+          text: "Now Playing"
+          font.pixelSize: Style.font.bodySmall
+          visible: musicPane.queue.length > 0
+          onClicked: {
+            musicPane.queueOpen = false
+            musicPane.nowPlaying = true
+          }
+        }
+        QQC.Button {
           text: "Play album"
           font.pixelSize: Style.font.bodySmall
           visible: musicPane.page.action === "tracks"
