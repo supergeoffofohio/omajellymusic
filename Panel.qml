@@ -1,3 +1,5 @@
+import QtQuick.Controls as QQC
+import Quickshell.Io
 import QtQuick
 import QtQuick.Controls
 import Quickshell
@@ -342,12 +344,197 @@ Panel {
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(430))
     contentHeight: panel.fittedContentHeight(
-      root.settingsOpen ? settingsOverlay.contentImplicitHeight : panelColumn.implicitHeight,
+      root.settingsOpen ? settingsOverlay.contentImplicitHeight : musicPane.implicitHeight,
       Style.space(760)
     )
 
+
+    Column {
+      id: musicPane
+      width: parent.width
+      spacing: 6
+      visible: !root.settingsOpen
+      property var trail: [{action: "artists", title: "Album artists", key: ""}]
+      property var rows: []
+      property string message: ""
+      property string playingTitle: ""
+      readonly property var page: trail[trail.length - 1]
+      readonly property string helper: JellyCore.JellyfinState.pluginRoot + "/music_helper.py"
+
+      function loadPage() {
+        rows = []
+        message = "Loading…"
+        let args = ["python", helper, page.action]
+        if (page.key) args.push(page.key)
+        browse.command = args
+        browse.running = true
+      }
+
+      property var pendingPlay: null
+      property bool switchingPlayer: false
+
+      function requestPlay(action, key, title) {
+        pendingPlay = {action: action, key: key, title: title}
+        if (switchingPlayer) return
+        if (player.running) {
+          switchingPlayer = true
+          player.signal(15)
+        } else {
+          startPending()
+        }
+      }
+
+      function startPending() {
+        switchingPlayer = false
+        const next = pendingPlay
+        if (!next) return
+        pendingPlay = null
+        message = ""
+        playingTitle = next.title
+        player.command = ["python", helper, next.action, next.key]
+        player.running = true
+      }
+
+      function selectRow(row) {
+        if (page.action === "tracks") {
+          requestPlay("play", row.id, row.name)
+          return
+        }
+        let next = page.action === "artists" ? "albums" : "tracks"
+        trail = trail.concat([{action: next, title: row.name, key: row.id}])
+        loadPage()
+      }
+
+      Connections {
+        target: root
+        function onOpenedChanged() {
+          if (root.opened && !musicPane.rows.length && !browse.running)
+            musicPane.loadPage()
+        }
+      }
+
+      Process {
+        id: browse
+        stdout: StdioCollector {
+          onStreamFinished: {
+            try {
+              musicPane.rows = JSON.parse(text)
+              musicPane.message = musicPane.rows.length ? "" : "No items found."
+              musicList.positionViewAtBeginning()
+            } catch (error) {
+              musicPane.message = "Could not read this list."
+            }
+          }
+        }
+        stderr: StdioCollector {
+          onStreamFinished: { if (text.trim()) console.warn("OmaJelly music:", text.trim()) }
+        }
+      }
+
+      Process {
+        id: player
+        onExited: function(code, status) {
+          musicPane.playingTitle = ""
+          if (musicPane.pendingPlay) {
+            Qt.callLater(function() { musicPane.startPending() })
+          } else if (code !== 0) {
+            musicPane.message = "Playback failed."
+          }
+        }
+      }
+
+      Row {
+        width: parent.width
+        spacing: Style.space(8)
+
+        Image {
+          id: albumArt
+          source: musicPane.page.action === "tracks" && musicPane.rows.length
+            ? (musicPane.rows[0].cover || "") : ""
+          visible: status === Image.Ready
+          width: Style.space(64)
+          height: width
+          fillMode: Image.PreserveAspectFit
+          cache: false
+        }
+
+        Text {
+          width: parent.width - (albumArt.visible ? albumArt.width + parent.spacing : 0)
+          anchors.verticalCenter: parent.verticalCenter
+          text: musicPane.page.title
+          textFormat: Text.PlainText
+          color: root.contentForeground
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+          wrapMode: Text.Wrap
+          maximumLineCount: 2
+          elide: Text.ElideRight
+        }
+      }
+
+      Row {
+        spacing: 8
+        QQC.Button {
+          text: "Back"
+          font.pixelSize: Style.font.bodySmall
+          enabled: musicPane.trail.length > 1 && !browse.running
+          onClicked: {
+            musicPane.trail = musicPane.trail.slice(0, -1)
+            musicPane.loadPage()
+          }
+        }
+        QQC.Button {
+          text: "Play album"
+          font.pixelSize: Style.font.bodySmall
+          visible: musicPane.page.action === "tracks"
+          enabled: !browse.running && musicPane.rows.length > 0
+          onClicked: {
+            musicPane.requestPlay("play-album", musicPane.page.key, musicPane.page.title)
+          }
+        }
+      }
+
+      QQC.Label {
+        visible: text !== ""
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.bodySmall
+        text: musicPane.message || (player.running ? "Playing: " + musicPane.playingTitle : "")
+        textFormat: Text.PlainText
+        color: root.contentForeground
+        width: parent.width
+        elide: Text.ElideRight
+      }
+
+      ListView {
+        id: musicList
+        width: parent.width
+        height: Style.space(320)
+        clip: true
+        model: musicPane.rows
+        QQC.ScrollBar.vertical: QQC.ScrollBar {}
+        delegate: ItemDelegate {
+          required property var modelData
+          width: ListView.view.width
+          text: modelData.name
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.bodySmall
+          contentItem: Text {
+            text: parent.text
+            font: parent.font
+            color: root.contentForeground
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+          }
+          onClicked: musicPane.selectRow(modelData)
+        }
+      }
+    }
+
     PanelKeyCatcher {
       id: keyCatcher
+      visible: root.settingsOpen
       anchors.fill: parent
       blocked: keybindingsOverlay.inputFocused || mediaSearchField.activeFocus
         || root.settingsOpen

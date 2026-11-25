@@ -1,1 +1,3 @@
 singleton JellyfinState 1.0 JellyfinState.qml
+
+MarqueeLabel 1.0 MarqueeLabel.qml

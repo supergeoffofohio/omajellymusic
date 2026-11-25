@@ -74,7 +74,7 @@ ListView {
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(1)
 
-      MarqueeLabel {
+      JellyCore.MarqueeLabel {
         width: parent.width
         text: Model.plainText(mediaRow.modelData.title, 256)
         color: mediaRow.modelData.watchState === "watched"
