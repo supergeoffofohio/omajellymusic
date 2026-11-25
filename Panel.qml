@@ -540,8 +540,17 @@ Panel {
             QQC.Button {
               required property int index
               required property string modelData
-              text: modelData
-              font.pixelSize: Style.font.bodySmall
+              readonly property var glyphs: ["\uf048", musicPane.paused ? "\uf04b" : "\uf04c", "\uf051", "\uf03a", "\uf001"]
+              text: glyphs[index]
+              font.family: "Symbols Nerd Font Mono"
+              font.pixelSize: Style.font.body
+              implicitWidth: Style.space(40)
+              implicitHeight: Style.space(34)
+              Accessible.name: modelData
+              hoverEnabled: true
+              QQC.ToolTip.text: modelData
+              QQC.ToolTip.visible: hovered
+              QQC.ToolTip.delay: 400
               enabled: index === 0 ? musicPane.position > 0
                 : index === 2 ? musicPane.position + 1 < musicPane.queue.length : true
               onClicked: {
