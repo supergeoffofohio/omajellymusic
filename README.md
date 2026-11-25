@@ -19,6 +19,7 @@ Right-click the bar icon to open connection settings. Enter your Jellyfin base U
 ## Use the player
 
 - Open an album artist, then an album. Click a track to play it individually or **Play album** to queue the album in disc and track order.
+- From **Album artists**, choose **Playlists**, open a saved Jellyfin playlist, and click **Play playlist**. Audio tracks play in saved order, including repeats. Now Playing and Macro Deck show each track’s own title, artist, album, and artwork.
 - Click the bar icon during playback to open Now Playing. Use the transport controls to pause, resume, or change tracks.
 - Click **Queue** to see the track list and jump to another song. Choose **Library** to browse and **Now Playing** to return to the current track.
 
@@ -28,7 +29,7 @@ During playback, OmaJelly Music publishes the track, artist, album, local cover 
 
 ## Optional Macro Deck button
 
-Start an album. In Macro Deck on the same desktop, add a **Music Player** widget and select OmaJelly Music if listed, or **System Media – Any app**. Choose **Full cover** and enable the title, artist, album, and timeline as desired. With **Any app**, other active players may also supply the display.
+Start an album or playlist. In Macro Deck on the same desktop, add a **Music Player** widget and select OmaJelly Music if listed, or **System Media – Any app**. Choose **Full cover** and enable the title, artist, album, and timeline as desired. With **Any app**, other active players may also supply the display.
 
 With `playerctl` installed on the Macro Deck host, assign each gesture a **Run Command** action:
 
