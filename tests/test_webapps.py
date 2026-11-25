@@ -56,7 +56,7 @@ class WebappTests(unittest.TestCase):
                 mock.patch("omajelly.webapps.launch_detached") as launcher,
             ):
                 def fake_install(*args, **kwargs):
-                    (applications / "Jellyfin.desktop").write_text(
+                    (applications / f"{WEBAPP_NAME}.desktop").write_text(
                         desktop, encoding="utf-8"
                     )
                     return 0
@@ -68,7 +68,7 @@ class WebappTests(unittest.TestCase):
                 self.assertTrue(result["createdByOmajelly"])
                 argv = command.call_args.args[0]
                 self.assertEqual(argv[0], "omarchy-webapp-install")
-                self.assertEqual(argv[1], "Jellyfin")
+                self.assertEqual(argv[1], WEBAPP_NAME)
                 self.assertEqual(argv[2], "http://jellyfin:8096/web/")
                 self.assertEqual(len(argv), 4)
                 self.assertNotIn(TOKEN, " ".join(argv))
@@ -93,7 +93,7 @@ class WebappTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             applications = Path(directory) / "share" / "applications"
             applications.mkdir(parents=True)
-            desktop = applications / "Jellyfin.desktop"
+            desktop = applications / f"{WEBAPP_NAME}.desktop"
             desktop.write_text(old, encoding="utf-8")
             with (
                 mock.patch.dict(
@@ -145,7 +145,7 @@ class WebappTests(unittest.TestCase):
                 mark_created_webapp(WEBAPP_NAME)
                 self.assertTrue(remove_created_jellyfin_webapp())
                 argv = command.call_args.args[0]
-                self.assertEqual(argv, ["omarchy-webapp-remove", "Jellyfin"])
+                self.assertEqual(argv, ["omarchy-webapp-remove", WEBAPP_NAME])
                 self.assertNotIn(TOKEN, " ".join(argv))
                 self.assertFalse((config_home() / "created-webapp.json").exists())
                 self.assertEqual(

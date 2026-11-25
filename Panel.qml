@@ -10,8 +10,8 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "io.github.hopelezz.omajelly"
-  ipcTarget: "io.github.hopelezz.omajelly"
+  moduleName: "io.github.supergeoffofohio.omajellymusic"
+  ipcTarget: "io.github.supergeoffofohio.omajellymusic"
   manageIpc: false
 
   property var anchorItem: null

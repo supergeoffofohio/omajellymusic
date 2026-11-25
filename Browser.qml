@@ -36,7 +36,7 @@ Item {
   property int _requestedOffset: 0
 
   readonly property string pluginRoot: Quickshell.env("HOME")
-    + "/.config/omarchy/plugins/io.github.hopelezz.omajelly"
+    + "/.config/omarchy/plugins/io.github.supergeoffofohio.omajellymusic"
   readonly property string helperCommand: pluginRoot + "/bin/omajelly"
   readonly property bool browsingDownloads: browseKind === "downloads"
   readonly property bool searching: query.trim() !== ""
@@ -81,7 +81,7 @@ Item {
 
   function dismiss() {
     if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "io.github.hopelezz.omajelly")
+      root.shell.hide((root.manifest && root.manifest.id) || "io.github.supergeoffofohio.omajellymusic")
     else close()
   }
 

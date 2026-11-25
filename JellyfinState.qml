@@ -75,7 +75,7 @@ Item {
   signal configurationFinished(bool success, string detail)
 
   readonly property string pluginRoot: Quickshell.env("HOME")
-    + "/.config/omarchy/plugins/io.github.hopelezz.omajelly"
+    + "/.config/omarchy/plugins/io.github.supergeoffofohio.omajellymusic"
   readonly property string helperCommand: pluginRoot + "/bin/omajelly"
   readonly property bool scanning: scanProcess.running
   readonly property bool configuring: setupProcess.running
@@ -111,7 +111,7 @@ Item {
       return false
     routeProcess.command = [
       "timeout", "--signal=TERM", "5", "omarchy-shell", "shell", method,
-      "io.github.hopelezz.omajelly"
+      "io.github.supergeoffofohio.omajellymusic"
     ]
     routeProcess.running = true
     return true
@@ -551,7 +551,7 @@ Item {
   // singleton avoids duplicate target registration; panel open/close is
   // routed by Omarchy's shell summon/hide commands to the focused monitor.
   IpcHandler {
-    target: "io.github.hopelezz.omajelly"
+    target: "io.github.supergeoffofohio.omajellymusic"
 
     function open() { root.routeThroughShell("summon") }
     function close() { root.routeThroughShell("hide") }

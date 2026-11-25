@@ -21,7 +21,7 @@ from omajelly.common import (
 from omajelly.config import config_home, load_config
 from omajelly.constants import MAX_CONFIG_BYTES, SCHEMA_VERSION
 
-WEBAPP_NAME = "Jellyfin"
+WEBAPP_NAME = "OmaJelly Music"
 WEBAPP_INSTALLER = "omarchy-webapp-install"
 WEBAPP_LAUNCHER = "omarchy-launch-webapp"
 WEBAPP_REMOVER = "omarchy-webapp-remove"

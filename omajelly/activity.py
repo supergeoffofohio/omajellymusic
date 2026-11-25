@@ -38,7 +38,7 @@ from omajelly.media_items import (
 
 def cache_home() -> Path:
     base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    return base / "omajelly"
+    return base / "omajellymusic"
 
 
 def _query(values: dict[str, Any]) -> str:

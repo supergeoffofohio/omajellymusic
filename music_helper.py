@@ -13,7 +13,7 @@ from omajelly.ids import valid_item_id
 
 
 def control_socket():
-    return f"/run/user/{os.getuid()}/omajelly-music.sock"
+    return f"/run/user/{os.getuid()}/omajellymusic-player.sock"
 
 
 def player_command(read_pause=False):
@@ -68,7 +68,7 @@ def album_cover(client, album_id):
     from urllib.error import HTTPError
     from omajelly.common import JellyfinError
 
-    directory = Path(os.environ["XDG_RUNTIME_DIR"]) / "omajelly-art"
+    directory = Path(os.environ["XDG_RUNTIME_DIR"]) / "omajellymusic-art"
     directory.mkdir(mode=0o700, exist_ok=True)
     target = directory / (album_id + ".jpg")
     try:

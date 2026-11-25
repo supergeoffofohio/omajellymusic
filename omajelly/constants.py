@@ -1,4 +1,4 @@
-PLUGIN_ID = "io.github.hopelezz.omajelly"
+PLUGIN_ID = "io.github.supergeoffofohio.omajellymusic"
 SCHEMA_VERSION = 1
 MAX_API_BYTES = 2 * 1024 * 1024
 MAX_CACHE_BYTES = 256 * 1024
@@ -35,7 +35,7 @@ MAX_FIELD = 256
 REQUEST_TIMEOUT = 8
 STALE_SECONDS = 15 * 60
 NEW_AGE_DAYS = 30
-CLIENT_PRODUCT = "Omajelly"
+CLIENT_PRODUCT = "OmaJelly Music"
 CLIENT_DEVICE = "Omarchy"
 CLIENT_VERSION = "0.1.0"
 ITEM_ID_PATTERN = r"[0-9a-fA-F-]{8,48}"

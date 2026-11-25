@@ -8,7 +8,7 @@ This project builds on [Hopelezz’s Omajelly](https://github.com/Hopelezz/omaje
 
 You need Omarchy Quattro with the schema version 1 plugin API, Python 3.11 or newer, mpv, secret-tool, a desktop secret service, and a Jellyfin account with access to music.
 
-**Existing Omajelly users:** both versions currently use the plugin ID `io.github.hopelezz.omajelly` and the same installation directory. Choose one version for that slot. Back up local edits before switching.
+OmaJelly Music uses its own plugin ID, `io.github.supergeoffofohio.omajellymusic`. If you used the earlier music fork in the original Omajelly slot, install this version separately, sign in once, and update your Macro Deck button to the path below. Your previous installation and its credentials stay in their original slot.
 
 ```bash
 omarchy plugin add https://github.com/supergeoffofohio/omajellymusic.git --enable
@@ -25,5 +25,5 @@ Right-click the bar icon to open connection settings. Enter your Jellyfin base U
 For a Macro Deck play/pause button, run this command as the desktop user. Use the full home directory path if your launcher does not expand `~`.
 
 ```bash
-/usr/bin/python ~/.config/omarchy/plugins/io.github.hopelezz.omajelly/music_helper.py play-pause
+/usr/bin/python ~/.config/omarchy/plugins/io.github.supergeoffofohio.omajellymusic/music_helper.py play-pause
 ```

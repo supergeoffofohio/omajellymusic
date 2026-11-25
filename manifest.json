@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.hopelezz.omajelly",
-  "name": "Jellyfin",
+  "id": "io.github.supergeoffofohio.omajellymusic",
+  "name": "OmaJelly Music",
   "version": "0.1.0",
-  "author": "hopelezz",
+  "author": "supergeoffofohio",
   "license": "MIT",
-  "description": "Jellyfin activity lists, fullscreen library browsing, and Jellyfin Web playback.",
+  "description": "Browse Jellyfin music and play albums from the Omarchy bar.",
   "kinds": [
     "bar-widget",
     "panel"
@@ -16,13 +16,12 @@
     "panel": "Browser.qml"
   },
   "barWidget": {
-    "displayName": "Jellyfin",
-    "description": "Continue watching, recently added media, and library browsing",
+    "displayName": "OmaJelly Music",
+    "description": "Browse Jellyfin music and play albums from the Omarchy bar.",
     "category": "Media",
     "aliases": [
-      "jellyfin",
-      "movies",
-      "television"
+      "omajellymusic",
+      "jellyfin-music"
     ],
     "allowMultiple": false,
     "defaultSection": "right"

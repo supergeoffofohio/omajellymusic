@@ -100,7 +100,7 @@ class DownloadTests(unittest.TestCase):
                     (
                         Path(directory)
                         / "config"
-                        / "omajelly"
+                        / "omajellymusic"
                         / "downloads.json"
                     ).read_text(encoding="utf-8")
                 )

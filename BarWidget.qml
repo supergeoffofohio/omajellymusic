@@ -6,7 +6,7 @@ import "." as JellyCore
 
 BarWidget {
   id: root
-  moduleName: "io.github.hopelezz.omajelly"
+  moduleName: "io.github.supergeoffofohio.omajellymusic"
 
   readonly property bool showNewItemCount: setting("showNewItemCount", true) !== false
   readonly property bool hasNewItems: JellyCore.JellyfinState.newCount > 0

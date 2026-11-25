@@ -431,7 +431,7 @@ class JellyfinPlaybackTests(unittest.TestCase):
             media = (
                 Path(directory)
                 / "cache"
-                / "omajelly"
+                / "omajellymusic"
                 / "downloads"
                 / MOVIE
                 / "media"

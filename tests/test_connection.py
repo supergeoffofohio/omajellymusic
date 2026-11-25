@@ -204,12 +204,13 @@ class JellyfinConnectionTests(unittest.TestCase):
                 },
                 clear=False,
             ),
+            mock.patch("omajelly.config.run_no_output", return_value=0),
             mock.patch("omajelly.webapps.run_no_output", return_value=0) as remover,
         ):
             save_config(SAMPLE_CONFIG)
             from omajelly.webapps import mark_created_webapp
 
-            mark_created_webapp("Jellyfin")
+            mark_created_webapp("OmaJelly Music")
             save_snapshot(
                 {
                     "schemaVersion": 1,
@@ -227,7 +228,7 @@ class JellyfinConnectionTests(unittest.TestCase):
             )
             document = clear_configuration(store)
             self.assertEqual(Path(remover.call_args.args[0][0]).name, "omarchy-webapp-remove")
-            self.assertEqual(remover.call_args.args[0][1], "Jellyfin")
+            self.assertEqual(remover.call_args.args[0][1], "OmaJelly Music")
             self.assertFalse((config_home() / "config.json").exists())
             self.assertFalse((cache_home() / "recent.json").exists())
             self.assertFalse((config_home() / "created-webapp.json").exists())

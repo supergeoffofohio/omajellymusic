@@ -33,7 +33,7 @@ AUTH_MODE_QUICKCONNECT = "quickconnect"
 
 def config_home() -> Path:
     base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    return base / "omajelly"
+    return base / "omajellymusic"
 
 
 def section_ids(value: Any) -> list[str]:
@@ -129,7 +129,7 @@ def save_window_geometry(value: dict[str, int]) -> None:
 
 class SecretStore:
     attributes = ("service", PLUGIN_ID)
-    label = "Omajelly token"
+    label = "OmaJelly Music token"
     maximum = MAX_TOKEN_BYTES
     description = "Jellyfin token"
 
@@ -199,7 +199,7 @@ class SecretStore:
 
 class PendingQuickConnectStore(SecretStore):
     attributes = ("service", PLUGIN_ID, "kind", "pending-quick-connect")
-    label = "Omajelly Quick Connect"
+    label = "OmaJelly Music Quick Connect"
     maximum = 256
     description = "Quick Connect secret"
 
