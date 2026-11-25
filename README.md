@@ -8,7 +8,7 @@ This project builds on [Hopelezz’s Omajelly](https://github.com/Hopelezz/omaje
 
 You need Omarchy Quattro with the schema version 1 plugin API, Python 3.11 or newer, mpv, secret-tool, a desktop secret service, and a Jellyfin account with access to music.
 
-OmaJelly Music uses its own plugin ID, `io.github.supergeoffofohio.omajellymusic`. If you used the earlier music fork in the original Omajelly slot, install this version separately, sign in once, and update your Macro Deck button to the path below. Your previous installation and its credentials stay in their original slot.
+OmaJelly Music uses its own plugin ID, `io.github.supergeoffofohio.omajellymusic`. If you used the earlier music fork in the original Omajelly slot, install this version separately, sign in once, and update any existing Macro Deck button using the commands below. Your previous installation and its credentials stay in their original slot.
 
 ```bash
 omarchy plugin add https://github.com/supergeoffofohio/omajellymusic.git --enable
@@ -22,8 +22,19 @@ Right-click the bar icon to open connection settings. Enter your Jellyfin base U
 - Click the bar icon during playback to open Now Playing. Use the transport controls to pause, resume, or change tracks.
 - Click **Queue** to see the track list and jump to another song. Choose **Library** to browse and **Now Playing** to return to the current track.
 
-For a Macro Deck play/pause button, run this command as the desktop user. Use the full home directory path if your launcher does not expand `~`.
+## Desktop media controls
 
-```bash
-/usr/bin/python ~/.config/omarchy/plugins/io.github.supergeoffofohio.omajellymusic/music_helper.py play-pause
-```
+During playback, OmaJelly Music publishes the track, artist, album, local cover image, duration, and playback position through MPRIS under the player name `omajellymusic`. Desktop media controls use `python-gobject`, included with Omarchy Quattro. You can use all tray controls directly.
+
+## Optional Macro Deck button
+
+Start an album. In Macro Deck on the same desktop, add a **Music Player** widget and select OmaJelly Music if listed, or **System Media – Any app**. Choose **Full cover** and enable the title, artist, album, and timeline as desired. With **Any app**, other active players may also supply the display.
+
+With `playerctl` installed on the Macro Deck host, assign each gesture a **Run Command** action:
+
+| Gesture | Command |
+| --- | --- |
+| Short press to pause or resume | `/usr/bin/playerctl --player=omajellymusic play-pause` |
+| Long press to advance the queue | `/usr/bin/playerctl --player=omajellymusic next` |
+
+To check what Macro Deck can display, run `playerctl --player=omajellymusic metadata` while a track is playing.
