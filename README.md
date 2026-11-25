@@ -6,6 +6,8 @@ This project builds on [Hopelezz’s Omajelly](https://github.com/Hopelezz/omaje
 
 ## Install and connect
 
+OmaJelly Music is distributed under the [MIT license](LICENSE).
+
 You need Omarchy Quattro with the schema version 1 plugin API, Python 3.11 or newer, mpv, secret-tool, a desktop secret service, and a Jellyfin account with access to music.
 
 OmaJelly Music uses its own plugin ID, `io.github.supergeoffofohio.omajellymusic`. If you used the earlier music fork in the original Omajelly slot, install this version separately, sign in once, and update any existing Macro Deck button using the commands below. Your previous installation and its credentials stay in their original slot.
@@ -15,6 +17,16 @@ omarchy plugin add https://github.com/supergeoffofohio/omajellymusic.git --enabl
 ```
 
 Right-click the bar icon to open connection settings. Enter your Jellyfin base URL, choose **Get a Quick Connect code**, and authorize the code from a signed-in Jellyfin client.
+
+## Remove the plugin
+
+To also clear the saved Jellyfin connection and cached downloads, open connection settings and choose **Remove credentials**, then **Confirm remove**, before uninstalling. Save any local edits to the installed plugin checkout that you want to keep.
+
+Run the following as your regular desktop user and confirm the removal prompt:
+
+```bash
+omarchy plugin remove io.github.supergeoffofohio.omajellymusic
+```
 
 ## Use the player
 

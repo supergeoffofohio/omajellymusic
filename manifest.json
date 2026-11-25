@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "author": "supergeoffofohio",
   "license": "MIT",
-  "description": "Browse Jellyfin music and play albums from the Omarchy bar.",
+  "description": "Browse and play Jellyfin albums and saved playlists from the Omarchy bar.",
   "kinds": [
     "bar-widget",
     "panel"
@@ -17,7 +17,7 @@
   },
   "barWidget": {
     "displayName": "OmaJelly Music",
-    "description": "Browse Jellyfin music and play albums from the Omarchy bar.",
+    "description": "Browse and play Jellyfin albums and saved playlists from the Omarchy bar.",
     "category": "Media",
     "aliases": [
       "omajellymusic",
