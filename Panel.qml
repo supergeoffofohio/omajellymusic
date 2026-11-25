@@ -411,7 +411,10 @@ Panel {
         }
       }
 
+      property bool playlistQueue: false
+
       function beginQueue(all, row) {
+        playlistQueue = page.action === "playlist-tracks"
         queue = all ? rows.slice() : [row]
         albumTitle = page.title
         artistName = trail.length > 1 ? trail[trail.length - 2].title : ""
@@ -424,6 +427,11 @@ Panel {
       function jump(index) {
         if (index < 0 || index >= queue.length) return
         position = index
+        if (playlistQueue) {
+          albumTitle = queue[index].album
+          artistName = queue[index].artists.join(", ")
+          artwork = ""
+        }
         paused = false
         requestPlay("play", queue[index].id, queue[index].name)
       }
@@ -470,16 +478,19 @@ Panel {
         message = ""
         Qt.callLater(publishMedia)
         playingTitle = next.title
-        player.command = ["python", helper, next.action, next.key]
+        let command = ["python", helper, next.action, next.key]
+        if (playlistQueue) command.push("--cover-id", queue[position].coverId)
+        player.command = command
         player.running = true
       }
 
       function selectRow(row) {
-        if (page.action === "tracks") {
+        if (page.action === "tracks" || page.action === "playlist-tracks") {
           beginQueue(false, row)
           return
         }
-        let next = page.action === "artists" ? "albums" : "tracks"
+        let next = page.action === "playlists" ? "playlist-tracks"
+          : (page.action === "artists" ? "albums" : "tracks")
         trail = trail.concat([{action: next, title: row.name, key: row.id}])
         loadPage()
       }
@@ -516,6 +527,16 @@ Panel {
 
       Process {
         id: player
+        stdout: SplitParser {
+          onRead: data => {
+            if (!data.trim()) return
+            let result = JSON.parse(data)
+            if (musicPane.playlistQueue && result.track === musicPane.queue[musicPane.position]?.id) {
+              musicPane.artwork = result.cover
+              musicPane.publishMedia()
+            }
+          }
+        }
         onExited: function(code, status) {
           musicPane.playingTitle = ""
           if (musicPane.pendingPlay) {
@@ -664,6 +685,17 @@ Panel {
           }
         }
         QQC.Button {
+          visible: musicPane.trail.length === 1
+          text: musicPane.page.action === "artists" ? "Playlists" : "Album artists"
+          enabled: !browse.running
+          font.pixelSize: Style.font.bodySmall
+          onClicked: {
+            let playlists = musicPane.page.action === "artists"
+            musicPane.trail = [{action: playlists ? "playlists" : "artists", title: text, key: ""}]
+            musicPane.loadPage()
+          }
+        }
+        QQC.Button {
           text: "Now Playing"
           font.pixelSize: Style.font.bodySmall
           visible: musicPane.queue.length > 0
@@ -673,9 +705,9 @@ Panel {
           }
         }
         QQC.Button {
-          text: "Play album"
+          text: musicPane.page.action === "playlist-tracks" ? "Play playlist" : "Play album"
           font.pixelSize: Style.font.bodySmall
-          visible: musicPane.page.action === "tracks"
+          visible: musicPane.page.action === "tracks" || musicPane.page.action === "playlist-tracks"
           enabled: !browse.running && musicPane.rows.length > 0
           onClicked: {
             musicPane.beginQueue(true, null)

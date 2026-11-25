@@ -5,6 +5,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import threading
 from urllib.parse import urlencode
 
 from omajelly.connection import client_from_saved
@@ -89,14 +90,15 @@ def album_cover(client, album_id):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["artists", "albums", "tracks", "play", "play-pause", "paused", "play-album"])
+    parser.add_argument("action", choices=["playlists", "playlist-tracks", "artists", "albums", "tracks", "play", "play-pause", "paused", "play-album"])
     parser.add_argument("item_id", nargs="?")
+    parser.add_argument("--cover-id")
     args = parser.parse_args()
     if args.action in ("play", "play-album"):
         prepare_playback_session()
     if args.action in ("play-pause", "paused"):
         return player_command(read_pause=args.action == "paused")
-    if args.action != "artists" and not args.item_id:
+    if args.action not in ("artists", "playlists") and not args.item_id:
         parser.error(f"{args.action} requires an item ID")
     item_id = valid_item_id(args.item_id) if args.item_id else None
 
@@ -104,6 +106,12 @@ def main():
     user_id = config["userId"]
 
     if args.action == "play":
+        if args.cover_id:
+            cover_id = valid_item_id(args.cover_id)
+            def send_cover():
+                url = album_cover(client, cover_id)
+                print(json.dumps({"track": item_id, "cover": url}), flush=True)
+            threading.Thread(target=send_cover, daemon=True).start()
         return play_track(client, item_id)
 
     path = f"/Users/{user_id}/Items"
@@ -111,6 +119,11 @@ def main():
     if args.action == "artists":
         path = "/Artists/AlbumArtists"
         query["UserId"] = user_id
+    elif args.action == "playlists":
+        query.update(IncludeItemTypes="Playlist", Recursive="true")
+    elif args.action == "playlist-tracks":
+        path = f"/Playlists/{item_id}/Items"
+        query = {"UserId": user_id}
     elif args.action == "albums":
         query.update(AlbumArtistIds=item_id, IncludeItemTypes="MusicAlbum",
                      Recursive="true")
@@ -119,17 +132,25 @@ def main():
                      SortBy="ParentIndexNumber,IndexNumber,SortName")
 
     rows = []
+    offset = 0
     while True:
-        query.update(StartIndex=len(rows), Limit=100)
+        query.update(StartIndex=offset, Limit=100)
         page = client.request_json(f"{path}?{urlencode(query)}")
         items = page["Items"]
+        offset += len(items)
         for item in items:
+            if args.action == "playlist-tracks" and item.get("Type") != "Audio":
+                continue
+            if args.action == "playlists" and item.get("MediaType") in ("Video", "Photo", "Book"):
+                continue
             row = {"id": item["Id"], "name": item["Name"]}
-            if args.action == "tracks":
+            if args.action in ("tracks", "playlist-tracks"):
                 row.update(artists=item.get("Artists") or [],
                            lengthUs=(item.get("RunTimeTicks") or 0) // 10)
+            if args.action == "playlist-tracks":
+                row.update(album=item.get("Album") or "", coverId=item.get("AlbumId") or item["Id"])
             rows.append(row)
-        if not items or len(rows) >= page.get("TotalRecordCount", float("inf")):
+        if not items or offset >= page.get("TotalRecordCount", float("inf")):
             break
     if args.action == "play-album":
         if not rows:
