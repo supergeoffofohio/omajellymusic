@@ -502,11 +502,13 @@ Panel {
         visible: musicPane.nowPlaying
         width: parent.width
         spacing: Style.space(6)
-        Column {
-          width: parent.width
-          spacing: Style.space(4)
+        Row {
+          id: albumHeader
+          anchors.horizontalCenter: parent.horizontalCenter
+          spacing: Style.space(10)
           Image {
-            anchors.horizontalCenter: parent.horizontalCenter
+            id: playingCover
+            anchors.verticalCenter: parent.verticalCenter
             width: Style.space(76)
             height: width
             visible: status === Image.Ready
@@ -514,14 +516,14 @@ Panel {
             fillMode: Image.PreserveAspectFit
           }
           Column {
-            width: parent.width
+            anchors.verticalCenter: parent.verticalCenter
             Repeater {
               model: [musicPane.queue[musicPane.position]?.name || "", musicPane.artistName, musicPane.albumTitle]
               Text {
                 required property string modelData
                 required property int index
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+                width: Math.min(implicitWidth, Math.max(0, musicPane.width
+                  - (playingCover.visible ? playingCover.width + albumHeader.spacing : 0)))
                 text: modelData
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
