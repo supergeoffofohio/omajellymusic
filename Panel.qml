@@ -502,11 +502,11 @@ Panel {
         visible: musicPane.nowPlaying
         width: parent.width
         spacing: Style.space(6)
-        Row {
+        Column {
           width: parent.width
-          spacing: Style.space(10)
+          spacing: Style.space(4)
           Image {
-            id: nowArt
+            anchors.horizontalCenter: parent.horizontalCenter
             width: Style.space(76)
             height: width
             visible: status === Image.Ready
@@ -514,14 +514,14 @@ Panel {
             fillMode: Image.PreserveAspectFit
           }
           Column {
-            width: parent.width - (nowArt.visible ? nowArt.width + parent.spacing : 0)
-            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
             Repeater {
               model: [musicPane.queue[musicPane.position]?.name || "", musicPane.artistName, musicPane.albumTitle]
               Text {
                 required property string modelData
                 required property int index
                 width: parent.width
+                horizontalAlignment: Text.AlignHCenter
                 text: modelData
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
@@ -532,8 +532,9 @@ Panel {
             }
           }
         }
-        Flow {
-          width: parent.width
+        Row {
+          id: transportRow
+          anchors.horizontalCenter: parent.horizontalCenter
           spacing: 4
           Repeater {
             model: ["Previous", musicPane.paused ? "Play" : "Pause", "Next", "Queue", "Library"]
@@ -544,7 +545,7 @@ Panel {
               text: glyphs[index]
               font.family: "Symbols Nerd Font Mono"
               font.pixelSize: Style.font.body
-              implicitWidth: Style.space(40)
+              width: Math.min(Style.space(40), Math.max(1, (musicPane.width - 4 * transportRow.spacing) / 5))
               implicitHeight: Style.space(34)
               Accessible.name: modelData
               hoverEnabled: true
