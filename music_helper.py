@@ -6,6 +6,8 @@ import json
 import shutil
 import subprocess
 import threading
+import sys
+from pathlib import Path
 from urllib.parse import urlencode
 
 from omajelly.connection import client_from_saved
@@ -38,18 +40,33 @@ def player_command(read_pause=False):
         raise SystemExit("mpv closed the connection before replying.")
 
 
+def player_arguments():
+    return [
+        sys.executable, str(Path(__file__).resolve().parent / "omajelly/player_process.py"),
+        str(os.getpid()), "mpv", "--no-config", "--no-video", "--really-quiet",
+        "--audio-client-name=OmaJellyMusic", f"--input-ipc-server={control_socket()}", "-",
+    ]
+
+
 def play_track(client, item_id):
     with client.open(f"/Audio/{item_id}/stream?static=true") as audio:
-        with subprocess.Popen(
-            ["mpv", "--no-config", "--no-video", "--really-quiet", f"--input-ipc-server={control_socket()}", "-"],
-            stdin=subprocess.PIPE,
-        ) as player:
+        with subprocess.Popen(player_arguments(), stdin=subprocess.PIPE) as player:
             try:
-                with player.stdin:
+                try:
                     shutil.copyfileobj(audio, player.stdin, length=65536)
-            except BrokenPipeError:
-                pass
-            return player.wait()
+                    player.stdin.close()
+                except BrokenPipeError:
+                    pass
+                return player.wait()
+            except BaseException:
+                # Kill before closing buffered stdin: a paused player may never drain it.
+                player.kill()
+                player.wait()
+                try:
+                    player.stdin.close()
+                except BrokenPipeError:
+                    pass
+                raise
 
 
 def prepare_playback_session():
