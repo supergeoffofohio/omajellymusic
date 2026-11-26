@@ -35,6 +35,8 @@ omarchy plugin remove io.github.supergeoffofohio.omajellymusic
 - Click the bar icon during playback to open Now Playing. Use the transport controls to pause, resume, or change tracks.
 - Click **Queue** to see the track list and jump to another song. Choose **Library** to browse and **Now Playing** to return to the current track.
 
+A queue uses one mpv player for continuous track advancement. OmaJelly Music has its own audio stream in the system mixer, so changing another mpv player’s mute or volume does not affect music playback.
+
 ## Desktop media controls
 
 During playback, OmaJelly Music publishes the track, artist, album, local cover image, duration, and playback position through MPRIS under the player name `omajellymusic`. Desktop media controls use `python-gobject`, included with Omarchy Quattro. You can use all tray controls directly.
