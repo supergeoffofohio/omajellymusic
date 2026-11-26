@@ -12,51 +12,16 @@ Item {
   property bool initialized: false
   property bool configured: false
   property bool settingsRequested: false
-  property bool stale: true
-  property var items: []
-  property var continueItems: []
-  property var movieItems: []
-  property var seriesItems: []
-  property int newCount: 0
-  property string sourceState: "unconfigured"
-  property string lastSuccessAt: ""
   property string lastError: ""
-  property string playbackMode: "windowed"
-  property string playingTitle: ""
   property string connectionServer: ""
   property string connectionName: ""
   property string authenticationMode: ""
   property string authenticationState: "idle"
   property string quickConnectCode: ""
-  property var movieLibraries: []
-  property var seriesLibraries: []
   property var musicLibraries: []
   property string setupMessage: ""
   property string _statusOutput: ""
   property string _statusError: ""
-  property string _refreshOutput: ""
-  property string _refreshError: ""
-  property string _scanOutput: ""
-  property string _scanError: ""
-  property string scanMessage: ""
-  property string _markError: ""
-  property string markingRatingKey: ""
-  property string markingTargetState: ""
-  property string markMessage: ""
-  property int scanRefreshesRemaining: 0
-  property string _playError: ""
-  property string _windowError: ""
-  property string _windowStatusOutput: ""
-  property bool playerWindowActive: false
-  property bool playInBrowser: true
-  property var downloadItems: []
-  property int downloadUsedBytes: 0
-  property int downloadMaxBytes: 0
-  property string _downloadOutput: ""
-  property string _downloadError: ""
-  property string _downloadNoticeKey: ""
-  property bool _downloadWasPresent: false
-  property string downloadMessage: ""
   property string _setupOutput: ""
   property string _setupError: ""
   property string _setupPayload: ""
@@ -64,58 +29,23 @@ Item {
   property string _clearError: ""
   property string _authOutput: ""
   property string _authError: ""
-  property string _folderOutput: ""
-  property string _folderError: ""
-  property string _folderParent: ""
-  property string _folderKind: ""
-  property var _pendingFolder: null
-  property var folderChildren: ({})
-  property string folderLoadingKey: ""
-  property string folderError: ""
-
   signal configurationFinished(bool success, string detail)
 
   readonly property string pluginRoot: Quickshell.env("HOME")
     + "/.config/omarchy/plugins/io.github.supergeoffofohio.omajellymusic"
   readonly property string helperCommand: pluginRoot + "/bin/omajelly"
-  readonly property bool scanning: scanProcess.running
   readonly property bool configuring: setupProcess.running
   readonly property bool clearingConfiguration: clearProcess.running
   readonly property bool authenticating: authenticationState !== "idle"
     || authStartProcess.running || authPollProcess.running || authCancelProcess.running
   readonly property bool settingsBusy: configuring || clearingConfiguration
     || authStartProcess.running || authPollProcess.running || authCancelProcess.running
-  readonly property bool syncingDownloads: downloadSyncProcess.running
-  readonly property bool settingDownloadLimit: downloadLimitProcess.running
-  readonly property bool queuingDownload: downloadAddProcess.running
-  readonly property bool removingDownload: downloadRemoveProcess.running
-  readonly property bool marking: markProcess.running
-  readonly property bool updating: refreshProcess.running || scanning || marking || settingsBusy
-  readonly property bool playing: playbackProcess.running
-  readonly property bool playingWindowed: playerWindowActive
-  readonly property bool movingPlayer: windowProcess.running
-  readonly property bool openingWeb: webProcess.running
-  readonly property string sourceLabel: Model.sourceLabel(sourceState, updating)
-  readonly property string freshnessText: Model.relativeTime(lastSuccessAt, Date.now())
-  readonly property string tooltipText: Model.tooltip({
-    configured: configured,
-    items: items,
-    newCount: newCount
-  }, updating)
+  readonly property bool updating: statusProcess.running || settingsBusy
+  signal popupRequested(string action)
+  signal refreshRequested()
 
   function safeText(value, maximum) {
     return Model.plainText(value, maximum || 220)
-  }
-
-  function routeThroughShell(method) {
-    if (routeProcess.running || ["summon", "hide", "toggle"].indexOf(method) < 0)
-      return false
-    routeProcess.command = [
-      "timeout", "--signal=TERM", "5", "omarchy-shell", "shell", method,
-      "io.github.supergeoffofohio.omajellymusic"
-    ]
-    routeProcess.running = true
-    return true
   }
 
   function normalizeLibraries(value) {
@@ -142,31 +72,19 @@ Item {
     authenticationMode = value.authMode === "password" ? "password"
       : (value.authMode === "quickconnect" ? "quickconnect"
         : (value.authMode === "token" ? "token" : ""))
-    movieLibraries = normalizeLibraries(value.movieLibraries)
-    seriesLibraries = normalizeLibraries(value.seriesLibraries)
     musicLibraries = normalizeLibraries(value.musicLibraries || [])
   }
 
   function applyDocument(raw) {
     var value = JSON.parse(String(raw || ""))
-    var document = Model.normalizeDocument(value)
     applyConnection(value.connection)
-    configured = document.configured
-    sourceState = document.sourceState
-    stale = document.stale
-    items = document.items
-    continueItems = document.continueItems
-    movieItems = document.movieItems
-    seriesItems = document.seriesItems
-    newCount = document.newCount
-    lastSuccessAt = document.lastSuccessAt
-    lastError = document.error
+    configured = value.configured === true
+    lastError = value.error || ""
     initialized = true
-    Qt.callLater(root.loadDownloads)
   }
 
   function loadStatus() {
-    if (!installed || statusProcess.running || refreshProcess.running || marking || settingsBusy) return false
+    if (!installed || statusProcess.running || settingsBusy) return false
     _statusOutput = ""
     _statusError = ""
     statusProcess.command = ["timeout", "--signal=TERM", "12", helperCommand, "status"]
@@ -174,29 +92,8 @@ Item {
     return true
   }
 
-  function refresh() {
-    if (!installed || refreshProcess.running || marking || settingsBusy) return false
-    _refreshOutput = ""
-    _refreshError = ""
-    lastError = ""
-    refreshProcess.command = ["timeout", "--signal=TERM", "25", helperCommand, "refresh"]
-    refreshProcess.running = true
-    return true
-  }
-
-  function scanLibraries() {
-    if (!installed || !configured || scanProcess.running || marking || settingsBusy) return false
-    _scanOutput = ""
-    _scanError = ""
-    scanMessage = ""
-    lastError = ""
-    scanProcess.command = ["timeout", "--signal=TERM", "30", helperCommand, "scan"]
-    scanProcess.running = true
-    return true
-  }
-
   function configure(values) {
-    if (!installed || statusProcess.running || refreshProcess.running || scanning
+    if (!installed || statusProcess.running
         || settingsBusy || authenticating)
       return false
     var server = safeText(values.server, 512)
@@ -243,7 +140,7 @@ Item {
   }
 
   function startQuickConnect(server) {
-    if (!installed || statusProcess.running || refreshProcess.running || scanning
+    if (!installed || statusProcess.running
         || settingsBusy || authenticating)
       return false
     var origin = safeText(server, 512)
@@ -292,7 +189,7 @@ Item {
   }
 
   function clearConfiguration() {
-    if (!installed || statusProcess.running || refreshProcess.running || scanning || settingsBusy)
+    if (!installed || statusProcess.running || settingsBusy)
       return false
     _clearOutput = ""
     _clearError = ""
@@ -303,339 +200,25 @@ Item {
     return true
   }
 
-  function playItem(item, mode) {
-    if (!item || item.playable === false || playbackProcess.running) return false
-    var ratingKey = String(item.playbackRatingKey || item.ratingKey || "")
-    var requestedMode = mode === "fullscreen" ? "fullscreen" : "windowed"
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(ratingKey)) {
-      lastError = "This Jellyfin item has an invalid item id"
-      return false
-    }
-    playbackMode = requestedMode
-    playingTitle = safeText(item.title, 256)
-    playerWindowActive = true
-    _playError = ""
-    playbackProcess.command = [
-      helperCommand, "play",
-      "--rating-key", ratingKey,
-      "--mode", requestedMode,
-      "--backend", root.playInBrowser ? "web" : "mpv"
-    ]
-    playbackProcess.running = true
-    return true
-  }
-
-  function applyDownloadDocument(raw) {
-    var document = JSON.parse(String(raw || ""))
-    if (!document || document.schemaVersion !== 1) return
-    var rows = document.items
-    if (!(rows instanceof Array)) rows = []
-    var items = []
-    for (var index = 0; index < rows.length && index < 40; index++) {
-      var item = Model.normalizeItem(rows[index])
-      if (item) {
-        item.downloadState = String(rows[index].downloadState || "")
-        items.push(item)
-      }
-    }
-    root.downloadItems = items
-    root.downloadUsedBytes = Math.max(0, Number(document.usedBytes) || 0)
-    root.downloadMaxBytes = Math.max(0, Number(document.maxBytes) || 0)
-  }
-
-  function downloadStateFor(item) {
-    var key = String(item && (item.playbackRatingKey || item.ratingKey) || "")
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(key)) return ""
-    var rows = root.downloadItems
-    for (var index = 0; index < rows.length; index++) {
-      if (String(rows[index].ratingKey || "") === key
-          || String(rows[index].playbackRatingKey || "") === key)
-        return String(rows[index].downloadState || "queued")
-    }
-    return ""
-  }
-
-  function setDownloadMessage(text) {
-    downloadMessage = safeText(text, 120)
-    downloadMessageTimer.restart()
-  }
-
-  function loadDownloads() {
-    if (!installed || downloadListProcess.running) return false
-    _downloadOutput = ""
-    _downloadError = ""
-    downloadListProcess.command = [
-      "timeout", "--signal=TERM", "8", helperCommand, "download-list"
-    ]
-    downloadListProcess.running = true
-    return true
-  }
-
-  function queueDownload(item) {
-    if (!item || item.playable === false || downloadAddProcess.running || !configured)
-      return false
-    var ratingKey = String(item.playbackRatingKey || item.ratingKey || "")
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(ratingKey)) {
-      lastError = "This Jellyfin item has an invalid item id"
-      return false
-    }
-    _downloadOutput = ""
-    _downloadError = ""
-    lastError = ""
-    _downloadNoticeKey = ratingKey
-    _downloadWasPresent = false
-    for (var index = 0; index < root.downloadItems.length; index++) {
-      if (String(root.downloadItems[index].ratingKey || "") === ratingKey
-          || String(root.downloadItems[index].playbackRatingKey || "") === ratingKey)
-        _downloadWasPresent = true
-    }
-    root.setDownloadMessage(_downloadWasPresent ? "Already on the download list" : "Queuing…")
-    downloadAddProcess.command = [
-      "timeout", "--signal=TERM", "20", helperCommand, "download-add",
-      "--rating-key", ratingKey
-    ]
-    downloadAddProcess.running = true
-    return true
-  }
-
-  function removeDownload(item) {
-    if (!item || downloadRemoveProcess.running) return false
-    var ratingKey = String(item.ratingKey || "")
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(ratingKey)) return false
-    _downloadOutput = ""
-    _downloadError = ""
-    lastError = ""
-    _downloadNoticeKey = ratingKey
-    downloadRemoveProcess.command = [
-      "timeout", "--signal=TERM", "12", helperCommand, "download-remove",
-      "--rating-key", ratingKey
-    ]
-    downloadRemoveProcess.running = true
-    return true
-  }
-
-  function startDownloadSync() {
-    if (!installed || !configured || downloadSyncProcess.running) return false
-    downloadSyncProcess.command = [helperCommand, "download-sync"]
-    downloadSyncProcess.running = true
-    return true
-  }
-
-  function setDownloadLimit(gibibytes) {
-    var gib = Math.round(Number(gibibytes))
-    if ([5, 10, 20, 40].indexOf(gib) === -1 || !installed || downloadLimitProcess.running)
-      return false
-    _downloadOutput = ""
-    _downloadError = ""
-    lastError = ""
-    downloadLimitProcess.command = [
-      "timeout", "--signal=TERM", "8", helperCommand, "download-limit",
-      "--gib", String(gib)
-    ]
-    downloadLimitProcess.running = true
-    return true
-  }
-
-  function loadFolderChildren(parentKey, kind) {
-    var key = String(parentKey || "")
-    var folderKind = kind === "episodes" ? "episodes" : "seasons"
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(key)) return false
-    if (root.folderChildren[key] !== undefined) return true
-    if (folderProcess.running) {
-      if (_folderParent === key && _folderKind === folderKind) return true
-      _pendingFolder = { key: key, kind: folderKind }
-      return true
-    }
-    _pendingFolder = null
-    _folderOutput = ""
-    _folderError = ""
-    folderError = ""
-    folderLoadingKey = key
-    _folderParent = key
-    _folderKind = folderKind
-    folderProcess.command = [
-      "timeout", "--signal=TERM", "25", helperCommand, "browse",
-      "--kind", folderKind,
-      "--parent-rating-key", key,
-      "--offset", "0",
-      "--limit", folderKind === "seasons" ? "60" : "40"
-    ]
-    folderProcess.running = true
-    return true
-  }
-
-  function clearFolderChildren() {
-    folderChildren = ({})
-    folderLoadingKey = ""
-    folderError = ""
-    _pendingFolder = null
-    folderProcess.running = false
-  }
-
-  function setPlaybackMode(mode) {
-    playbackMode = mode === "fullscreen" ? "fullscreen" : "windowed"
-  }
-
-  function bringPlayerHere() {
-    if (!playingWindowed || windowProcess.running) return false
-    _windowError = ""
-    lastError = ""
-    windowProcess.command = [
-      "timeout", "--signal=TERM", "5", helperCommand, "bring-player"
-    ]
-    windowProcess.running = true
-    return true
-  }
-
-  function checkPlayerWindow() {
-    if (!installed || windowStatusProcess.running) return false
-    _windowStatusOutput = ""
-    windowStatusProcess.command = [
-      "timeout", "--signal=TERM", "4", helperCommand, "player-window-status"
-    ]
-    windowStatusProcess.running = true
-    return true
-  }
-
-  function setWatchState(item, state) {
-    if (!item || playbackProcess.running || refreshProcess.running || scanning || marking || settingsBusy)
-      return false
-    var ratingKey = String(item.ratingKey || "")
-    var targetState = state === "watched" ? "watched"
-      : (state === "unwatched" ? "unwatched" : "")
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(ratingKey) || targetState === "") {
-      lastError = "This Jellyfin item has an invalid watch state"
-      return false
-    }
-    _markError = ""
-    lastError = ""
-    markMessageTimer.stop()
-    markMessage = targetState === "watched" ? "Marking watched…" : "Marking unwatched…"
-    markingRatingKey = ratingKey
-    markingTargetState = targetState
-    markProcess.command = [
-      "timeout", "--signal=TERM", "15", helperCommand, "mark",
-      "--rating-key", ratingKey, "--state", targetState
-    ]
-    markProcess.running = true
-    return true
-  }
-
-  function toggleWatchState(item) {
-    return setWatchState(item, item && item.watchState === "watched" ? "unwatched" : "watched")
-  }
-
-  function applyWatchState(ratingKey, state) {
-    items = Model.updateWatchState(items, ratingKey, state)
-    continueItems = Model.updateWatchState(continueItems, ratingKey, state)
-    movieItems = Model.updateWatchState(movieItems, ratingKey, state)
-    seriesItems = Model.updateWatchState(seriesItems, ratingKey, state)
-    newCount = movieItems.concat(seriesItems).filter(function(item) { return item.isNew }).length
-  }
-
-  function openWebItem(item) {
-    if (!item || webProcess.running) return false
-    var ratingKey = String(item.ratingKey || "")
-    if (!/^[0-9a-fA-F-]{8,48}$/.test(ratingKey)) return false
-    webProcess.command = [helperCommand, "open-web", "--rating-key", ratingKey]
-    webProcess.running = true
-    return true
-  }
-
-  function openJellyfinWeb() {
-    if (!configured || webProcess.running) return false
-    webProcess.command = [helperCommand, "open-web"]
-    webProcess.running = true
-    return true
-  }
-
-  // Bar widgets are instantiated per monitor. Keeping data IPC on this
-  // singleton avoids duplicate target registration; panel open/close is
-  // routed by Omarchy's shell summon/hide commands to the focused monitor.
   IpcHandler {
     target: "io.github.supergeoffofohio.omajellymusic"
 
-    function open() { root.routeThroughShell("summon") }
-    function close() { root.routeThroughShell("hide") }
-    function show() { root.routeThroughShell("summon") }
-    function hide() { root.routeThroughShell("hide") }
-    function toggle() { root.routeThroughShell("toggle") }
+    function open() { root.popupRequested("summon") }
+    function close() { root.popupRequested("hide") }
+    function show() { root.popupRequested("summon") }
+    function hide() { root.popupRequested("hide") }
+    function toggle() { root.popupRequested("toggle") }
 
-    function refresh(): string {
-      return root.refresh() ? "Jellyfin refresh started" : "Jellyfin refresh already running"
-    }
-
-    function scan(): string {
-      return root.scanLibraries() ? "Jellyfin library scan started" : "Jellyfin library scan unavailable"
-    }
-
+    function refresh(): string { root.refreshRequested(); return "Music library refresh requested" }
     function settings(): string {
       root.settingsRequested = true
-      root.routeThroughShell("summon")
+      root.popupRequested("summon")
       return "Jellyfin connection settings opened"
     }
 
     function status(): string {
-      return JSON.stringify({
-        configured: root.configured,
-        state: root.sourceState,
-        stale: root.stale,
-        updating: root.updating,
-        scanning: root.scanning,
-        marking: root.marking,
-        playing: root.playing,
-        configuring: root.configuring,
-        authenticationMode: root.authenticationMode,
-        authenticating: root.authenticating,
-        quickConnectCode: root.quickConnectCode,
-        items: root.items.length,
-        continueItems: root.continueItems.length,
-        movieItems: root.movieItems.length,
-        seriesItems: root.seriesItems.length,
-        movieLibraries: root.movieLibraries.length,
-        seriesLibraries: root.seriesLibraries.length,
-        newItems: root.newCount,
-        lastSuccessAt: root.lastSuccessAt,
-        error: root.lastError
-      })
+      return JSON.stringify({configured: root.configured, updating: root.updating, error: root.lastError})
     }
-  }
-
-  Timer {
-    interval: 2 * 1000
-    repeat: true
-    running: root.playing || root.playerWindowActive
-    onTriggered: root.checkPlayerWindow()
-  }
-
-  Timer {
-    id: scanFollowupTimer
-    interval: 12 * 1000
-    repeat: true
-    onTriggered: {
-      if (refreshProcess.running) return
-      root.refresh()
-      root.scanRefreshesRemaining -= 1
-      if (root.scanRefreshesRemaining <= 0) stop()
-    }
-  }
-
-  Timer {
-    id: scanMessageTimer
-    interval: 8 * 1000
-    onTriggered: root.scanMessage = ""
-  }
-
-  Timer {
-    id: downloadMessageTimer
-    interval: 5 * 1000
-    onTriggered: root.downloadMessage = ""
-  }
-
-  Timer {
-    id: markMessageTimer
-    interval: 5 * 1000
-    onTriggered: root.markMessage = ""
   }
 
   Timer {
@@ -687,101 +270,6 @@ Item {
         root.initialized = true
         root.lastError = root.safeText(error, 220)
       }
-    }
-  }
-
-  Process {
-    id: refreshProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: refreshStdout
-      waitForEnd: true
-      onStreamFinished: root._refreshOutput = text
-    }
-    stderr: StdioCollector {
-      id: refreshStderr
-      waitForEnd: true
-      onStreamFinished: root._refreshError = text
-    }
-    onExited: function(exitCode) {
-      var stdout = String(root._refreshOutput || refreshStdout.text || "")
-      var stderr = String(root._refreshError || refreshStderr.text || "")
-      try {
-        if (stdout.trim() !== "") root.applyDocument(stdout)
-        else if (exitCode !== 0) root.lastError = root.safeText(stderr || "Jellyfin refresh failed", 220)
-      } catch (error) {
-        root.lastError = root.safeText(stderr || error, 220)
-      }
-    }
-  }
-
-  Process {
-    id: scanProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: scanStdout
-      waitForEnd: true
-      onStreamFinished: root._scanOutput = text
-    }
-    stderr: StdioCollector {
-      id: scanStderr
-      waitForEnd: true
-      onStreamFinished: root._scanError = text
-    }
-    onExited: function(exitCode) {
-      var stdout = String(root._scanOutput || scanStdout.text || "")
-      var stderr = String(root._scanError || scanStderr.text || "")
-      if (exitCode !== 0) {
-        root.lastError = root.safeText(stderr || "Jellyfin library scan failed", 220)
-        return
-      }
-      try {
-        var document = JSON.parse(stdout)
-        var count = Math.floor(Number(document.sectionCount) || 0)
-        if (document.accepted !== true || count < 1 || count > 16)
-          throw new Error("Jellyfin returned an invalid scan response")
-        root.scanMessage = "Scan started for " + count + (count === 1 ? " library" : " libraries")
-        scanMessageTimer.restart()
-        root.scanRefreshesRemaining = 2
-        scanFollowupTimer.restart()
-      } catch (error) {
-        root.lastError = root.safeText(error, 220)
-      }
-    }
-  }
-
-  Process {
-    id: routeProcess
-    running: false
-    command: []
-  }
-
-  Process {
-    id: markProcess
-    running: false
-    command: []
-    stderr: StdioCollector {
-      id: markStderr
-      waitForEnd: true
-      onStreamFinished: root._markError = text
-    }
-    onExited: function(exitCode) {
-      var ratingKey = root.markingRatingKey
-      var targetState = root.markingTargetState
-      var error = String(root._markError || markStderr.text || "")
-      root.markingRatingKey = ""
-      root.markingTargetState = ""
-      if (exitCode !== 0) {
-        root.markMessage = ""
-        root.lastError = root.safeText(error || "Could not update Jellyfin watch state", 220)
-        return
-      }
-      root.applyWatchState(ratingKey, targetState)
-      root.markMessage = targetState === "watched" ? "Marked watched" : "Marked unwatched"
-      markMessageTimer.restart()
-      Qt.callLater(root.refresh)
     }
   }
 
@@ -946,273 +434,4 @@ Item {
     }
   }
 
-  Process {
-    id: folderProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: folderStdout
-      waitForEnd: true
-      onStreamFinished: root._folderOutput = text
-    }
-    stderr: StdioCollector {
-      id: folderStderr
-      waitForEnd: true
-      onStreamFinished: root._folderError = text
-    }
-    onExited: function(exitCode) {
-      var parentKey = root._folderParent
-      var kind = root._folderKind
-      root.folderLoadingKey = ""
-      var stdout = String(root._folderOutput || folderStdout.text || "")
-      var stderr = String(root._folderError || folderStderr.text || "")
-      if (exitCode !== 0) {
-        root.folderError = root.safeText(stderr || "Could not open that folder", 220)
-        return
-      }
-      try {
-        var document = Model.normalizeBrowseDocument(JSON.parse(stdout))
-        if (document.kind !== kind)
-          throw new Error("Jellyfin returned the wrong folder view")
-        var next = {}
-        for (var existing in root.folderChildren)
-          next[existing] = root.folderChildren[existing]
-        next[parentKey] = document.items
-        root.folderChildren = next
-        root.folderError = ""
-      } catch (error) {
-        root.folderError = root.safeText(error, 220)
-      }
-      var pending = root._pendingFolder
-      root._pendingFolder = null
-      if (pending && pending.key)
-        Qt.callLater(function() { root.loadFolderChildren(pending.key, pending.kind) })
-    }
-  }
-
-  Process {
-    id: playbackProcess
-    running: false
-    command: []
-    stderr: StdioCollector {
-      id: playStderr
-      waitForEnd: true
-      onStreamFinished: root._playError = text
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0)
-        root.lastError = root.safeText(root._playError || playStderr.text || "Playback failed", 220)
-      Qt.callLater(root.checkPlayerWindow)
-      Qt.callLater(root.refresh)
-    }
-  }
-
-  Process {
-    id: windowProcess
-    running: false
-    command: []
-    stderr: StdioCollector {
-      id: windowStderr
-      waitForEnd: true
-      onStreamFinished: root._windowError = text
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0)
-        root.lastError = root.safeText(
-          root._windowError || windowStderr.text || "Could not move the Omajelly player",
-          220
-        )
-      root.checkPlayerWindow()
-    }
-  }
-
-  Process {
-    id: windowStatusProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: windowStatusStdout
-      waitForEnd: true
-      onStreamFinished: root._windowStatusOutput = text
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0) {
-        root.playerWindowActive = false
-        root.playingTitle = ""
-        return
-      }
-      try {
-        var document = JSON.parse(String(
-          root._windowStatusOutput || windowStatusStdout.text || ""
-        ))
-        root.playerWindowActive = document && document.active === true
-      } catch (error) {
-        root.playerWindowActive = false
-      }
-      if (!root.playerWindowActive) root.playingTitle = ""
-    }
-  }
-
-  Process {
-    id: webProcess
-    running: false
-    command: []
-    stderr: StdioCollector {
-      id: webStderr
-      waitForEnd: true
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0) root.lastError = root.safeText(webStderr.text || "Could not open Jellyfin Web", 220)
-    }
-  }
-
-  Timer {
-    interval: 2000
-    repeat: true
-    running: root.syncingDownloads
-    onTriggered: root.loadDownloads()
-  }
-
-  Process {
-    id: downloadListProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: downloadListStdout
-      waitForEnd: true
-      onStreamFinished: root._downloadOutput = text
-    }
-    stderr: StdioCollector {
-      id: downloadListStderr
-      waitForEnd: true
-      onStreamFinished: root._downloadError = text
-    }
-    onExited: function(exitCode) {
-      Qt.callLater(function() {
-        try {
-          if (exitCode !== 0)
-            throw new Error(root._downloadError || downloadListStderr.text || "Could not read downloads")
-          root.applyDownloadDocument(root._downloadOutput || downloadListStdout.text)
-        } catch (error) {
-          root.lastError = root.safeText(error, 220)
-        }
-      })
-    }
-  }
-
-  Process {
-    id: downloadAddProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: downloadAddStdout
-      waitForEnd: true
-      onStreamFinished: root._downloadOutput = text
-    }
-    stderr: StdioCollector {
-      id: downloadAddStderr
-      waitForEnd: true
-      onStreamFinished: root._downloadError = text
-    }
-    onExited: function(exitCode) {
-      Qt.callLater(function() {
-        try {
-          if (exitCode !== 0)
-            throw new Error(root._downloadError || downloadAddStderr.text || "Could not add download")
-          root.applyDownloadDocument(root._downloadOutput || downloadAddStdout.text)
-          root.setDownloadMessage(
-            root._downloadWasPresent ? "Already on the download list" : "Queued for download"
-          )
-          root.startDownloadSync()
-        } catch (error) {
-          root.downloadMessage = ""
-          root.lastError = root.safeText(error, 220)
-        }
-      })
-    }
-  }
-
-  Process {
-    id: downloadRemoveProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: downloadRemoveStdout
-      waitForEnd: true
-      onStreamFinished: root._downloadOutput = text
-    }
-    stderr: StdioCollector {
-      id: downloadRemoveStderr
-      waitForEnd: true
-      onStreamFinished: root._downloadError = text
-    }
-    onExited: function(exitCode) {
-      Qt.callLater(function() {
-        try {
-          if (exitCode !== 0)
-            throw new Error(root._downloadError || downloadRemoveStderr.text || "Could not remove download")
-          root.applyDownloadDocument(root._downloadOutput || downloadRemoveStdout.text)
-          root.setDownloadMessage("Removed from downloads")
-        } catch (error) {
-          root.lastError = root.safeText(error, 220)
-        }
-      })
-    }
-  }
-
-  Process {
-    id: downloadSyncProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: downloadSyncStdout
-      waitForEnd: true
-      onStreamFinished: root._downloadOutput = text
-    }
-    stderr: StdioCollector {
-      id: downloadSyncStderr
-      waitForEnd: true
-      onStreamFinished: root._downloadError = text
-    }
-    onExited: function(exitCode) {
-      Qt.callLater(function() {
-        try {
-          if (exitCode === 0)
-            root.applyDownloadDocument(root._downloadOutput || downloadSyncStdout.text)
-          else if (root._downloadError || downloadSyncStderr.text)
-            root.lastError = root.safeText(root._downloadError || downloadSyncStderr.text, 220)
-        } catch (error) {
-          root.lastError = root.safeText(error, 220)
-        }
-        root.loadDownloads()
-      })
-    }
-  }
-
-  Process {
-    id: downloadLimitProcess
-    running: false
-    command: []
-    stdout: StdioCollector {
-      id: downloadLimitStdout
-      waitForEnd: true
-      onStreamFinished: root._downloadOutput = text
-    }
-    stderr: StdioCollector {
-      id: downloadLimitStderr
-      waitForEnd: true
-      onStreamFinished: root._downloadError = text
-    }
-    onExited: function(exitCode) {
-      Qt.callLater(function() {
-        try {
-          if (exitCode !== 0)
-            throw new Error(root._downloadError || downloadLimitStderr.text || "Could not set the download limit")
-          root.applyDownloadDocument(root._downloadOutput || downloadLimitStdout.text)
-        } catch (error) {
-          root.lastError = root.safeText(error, 220)
-        }
-      })
-    }
-  }
 }

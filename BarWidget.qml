@@ -8,9 +8,6 @@ BarWidget {
   id: root
   moduleName: "io.github.supergeoffofohio.omajellymusic"
 
-  readonly property bool showNewItemCount: setting("showNewItemCount", true) !== false
-  readonly property bool hasNewItems: JellyCore.JellyfinState.newCount > 0
-  readonly property bool showBadge: !root.vertical && root.showNewItemCount && root.hasNewItems
   readonly property string jellyfinGlyph: "󰟈"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
@@ -53,13 +50,11 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.showBadge
-      ? root.jellyfinGlyph + " " + String(JellyCore.JellyfinState.newCount)
-      : root.jellyfinGlyph
-    slotSize: Style.bar.iconSlot * (root.showBadge ? 2 : 1)
-    tooltipText: JellyCore.JellyfinState.tooltipText
+    text: root.jellyfinGlyph
+    slotSize: Style.bar.iconSlot
+    tooltipText: "OmaJelly Music"
     onPressed: function(buttonCode) {
-      if (buttonCode === Qt.MiddleButton) JellyCore.JellyfinState.refresh()
+      if (buttonCode === Qt.MiddleButton) JellyCore.JellyfinState.refreshRequested()
       else if (buttonCode === Qt.RightButton) {
         var panel = panelLoader.item
         if (panel && panel.opened && panel.settingsOpen === true)

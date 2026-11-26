@@ -28,19 +28,6 @@ LIBRARIES = [
     {"id": SHOW_LIB, "type": "show", "title": "TV Shows"},
     {"id": "99999999999999999999999999999999", "type": "artist", "title": "Music"},
 ]
-SNAPSHOT = {
-    "schemaVersion": 1,
-    "configured": True,
-    "sourceState": "updated",
-    "stale": False,
-    "items": [],
-    "continueItems": [],
-    "movieItems": [],
-    "seriesItems": [],
-    "newCount": 0,
-    "lastSuccessAt": isoformat(NOW),
-    "error": "",
-}
 SAMPLE_CONFIG = {
     "schemaVersion": 1,
     "server": "http://jellyfin:8096",
@@ -93,9 +80,6 @@ class JellyfinConnectionTests(unittest.TestCase):
                 clear=False,
             ),
             mock.patch.object(connection_module, "JellyfinClient", return_value=client),
-            mock.patch.object(
-                connection_module, "recent_snapshot", return_value=SNAPSHOT
-            ),
         ):
             document = configure_connection(
                 {
@@ -135,9 +119,6 @@ class JellyfinConnectionTests(unittest.TestCase):
                 return_value=(TOKEN, USER, "demo"),
             ),
             mock.patch.object(connection_module, "JellyfinClient", return_value=client),
-            mock.patch.object(
-                connection_module, "recent_snapshot", return_value=SNAPSHOT
-            ),
         ):
             document = configure_connection(
                 {
@@ -268,13 +249,19 @@ class JellyfinConnectionTests(unittest.TestCase):
                     "error": "",
                 }
             )
+            legacy_media = cache_home() / "downloads" / MOVIE_LIB / "media"
+            legacy_media.parent.mkdir(parents=True)
+            legacy_media.write_bytes(b"previous download")
+            index = config_home() / "downloads.json"
+            index.write_bytes(b"legacy index")
             document = clear_configuration(store)
+            self.assertEqual(legacy_media.read_bytes(), b"previous download")
+            self.assertEqual(index.read_bytes(), b"legacy index")
             self.assertEqual(Path(remover.call_args.args[0][0]).name, "omarchy-webapp-remove")
             self.assertEqual(remover.call_args.args[0][1], "OmaJelly Music")
             self.assertFalse((config_home() / "config.json").exists())
             self.assertFalse((cache_home() / "recent.json").exists())
             self.assertFalse((config_home() / "created-webapp.json").exists())
-            self.assertFalse((config_home() / "downloads.json").exists())
         self.assertTrue(store.cleared)
         self.assertFalse(document["configured"])
         self.assertEqual(document["connection"]["server"], "")

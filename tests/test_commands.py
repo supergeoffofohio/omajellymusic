@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import io
 import unittest
+from contextlib import redirect_stderr
 from unittest import mock
 
 from omajelly import commands as commands_module
+from omajelly.cli import parser
 from omajelly.client import HttpMethod
 from omajelly.commands import command_refresh, scan_libraries
 from tests.support import MOVIE_LIB, SHOW_LIB, USER
 
 
 class JellyfinCommandTests(unittest.TestCase):
+    def test_video_commands_are_unavailable(self):
+        for command in ("download-list", "download-add", "download-remove", "download-limit",
+                        "download-sync", "play", "open-web", "browse", "subtitle-download"):
+            with self.subTest(command=command), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as rejected:
+                    parser().parse_args([command])
+                self.assertEqual(rejected.exception.code, 2)
+
     def test_refresh_backfills_and_returns_the_server_name(self):
         client = mock.Mock()
         client.fetch_server_name.return_value = "Living Room"

@@ -186,7 +186,7 @@ class JellyfinActivityTests(unittest.TestCase):
             with self.assertRaises(ResponseError):
                 read_regular_file(link, 1024)
 
-    def test_saved_status_keeps_last_successful_items(self):
+    def test_music_status_ignores_legacy_video_history(self):
         with (
             tempfile.TemporaryDirectory() as directory,
             mock.patch.dict(
@@ -239,5 +239,5 @@ class JellyfinActivityTests(unittest.TestCase):
             }
             save_snapshot(snapshot)
             status_doc = status_document()
-            self.assertEqual(status_doc["items"][0]["title"], "Saved")
-            self.assertEqual(status_doc["newCount"], 1)
+            self.assertEqual(status_doc["items"], [])
+            self.assertEqual(status_doc["newCount"], 0)

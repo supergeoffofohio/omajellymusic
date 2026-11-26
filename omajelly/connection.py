@@ -7,7 +7,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
-from omajelly.activity import cache_home, load_snapshot, recent_snapshot, save_snapshot
+from omajelly.activity import cache_home
 from omajelly.client import JellyfinClient, authenticate, validate_origin
 from omajelly.common import (
     ConfigurationError,
@@ -29,7 +29,6 @@ from omajelly.config import (
     validate_config,
 )
 from omajelly.constants import (
-    MAX_CACHE_BYTES,
     MAX_CONFIG_BYTES,
     MAX_ENV_BYTES,
     MAX_SETUP_BYTES,
@@ -247,12 +246,9 @@ def persist_authenticated_session(
             "clientIdentifier": client_identifier,
         }
     )
-    snapshot = recent_snapshot(client, config)
-    old_snapshot = load_snapshot()
     try:
         secret_store.store(token)
         save_config(config)
-        save_snapshot(snapshot)
     except Exception:
         with contextlib.suppress(JellyfinError):
             if saved_token:
@@ -261,10 +257,8 @@ def persist_authenticated_session(
                 secret_store.clear()
         with contextlib.suppress(JellyfinError, OSError):
             restore_file(config_home() / "config.json", old_config, MAX_CONFIG_BYTES)
-        with contextlib.suppress(JellyfinError, OSError):
-            restore_file(cache_home() / "recent.json", old_snapshot, MAX_CACHE_BYTES)
         raise
-    return with_connection(snapshot, config, libraries)
+    return with_connection({"configured": True, "error": ""}, config, libraries)
 
 
 def configure_connection(
@@ -303,21 +297,16 @@ def configure_connection(
 
 
 def clear_configuration(store: SecretStore | None = None) -> dict[str, Any]:
-    from omajelly.downloads import clear_downloads
     from omajelly.quickconnect import clear_pending
     from omajelly.webapps import remove_created_jellyfin_webapp
 
     with contextlib.suppress(JellyfinError, OSError):
         remove_created_jellyfin_webapp()
-    with contextlib.suppress(JellyfinError, OSError):
-        clear_downloads()
     (store or SecretStore()).clear()
     clear_pending()
     for path in (
         config_home() / "config.json",
         config_home() / "created-webapp.json",
-        config_home() / "downloads.json",
-        config_home() / "downloads.lock",
         cache_home() / "recent.json",
     ):
         with contextlib.suppress(FileNotFoundError):
@@ -363,9 +352,6 @@ def status_document() -> dict[str, Any]:
             },
             None,
         )
-    snapshot = load_snapshot()
-    if snapshot is not None:
-        return with_connection(snapshot, config)
     return with_connection(
         {
             "schemaVersion": SCHEMA_VERSION,

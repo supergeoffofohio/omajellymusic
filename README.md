@@ -20,7 +20,7 @@ Right-click the bar icon to open connection settings. Enter your Jellyfin base U
 
 ## Remove the plugin
 
-To also clear the saved Jellyfin connection and cached downloads, open connection settings and choose **Remove credentials**, then **Confirm remove**, before uninstalling. Save any local edits to the installed plugin checkout that you want to keep.
+To also clear the saved Jellyfin connection, open connection settings and choose **Remove credentials**, then **Confirm remove**, before uninstalling. Save any local edits to the installed plugin checkout that you want to keep.
 
 Run the following as your regular desktop user and confirm the removal prompt:
 
@@ -51,3 +51,5 @@ With `playerctl` installed on the Macro Deck host, assign each gesture a **Run C
 | Long press to advance the queue | `/usr/bin/playerctl --player=omajellymusic next` |
 
 To check what Macro Deck can display, run `playerctl --player=omajellymusic metadata` while a track is playing.
+
+Earlier versions stored downloaded videos under `$XDG_CACHE_HOME/omajellymusic/downloads` (normally `~/.cache/omajellymusic/downloads`). The music widget no longer lists or plays those files. They remain on disk until you move or delete them yourself.

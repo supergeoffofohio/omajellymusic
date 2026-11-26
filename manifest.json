@@ -7,13 +7,11 @@
   "license": "MIT",
   "description": "Browse and play Jellyfin albums and saved playlists from the Omarchy bar.",
   "kinds": [
-    "bar-widget",
-    "panel"
+    "bar-widget"
   ],
   "keepLoaded": false,
   "entryPoints": {
-    "barWidget": "BarWidget.qml",
-    "panel": "Browser.qml"
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "OmaJelly Music",
