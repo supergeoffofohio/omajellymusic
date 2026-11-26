@@ -155,6 +155,48 @@ class JellyfinConnectionTests(unittest.TestCase):
         self.assertNotIn("hunter2", dumped)
         self.assertNotIn(TOKEN, dumped)
 
+    def test_saved_credentials_are_bound_to_the_server_url(self):
+        old = {**SAMPLE_CONFIG, "server": "https://jellyfin:8096/media"}
+        for server in ("https://another:8096/media", "http://jellyfin:8096/media",
+                       "https://jellyfin:8097/media", "https://jellyfin:8096/other"):
+            with (self.subTest(server=server),
+                  mock.patch.object(connection_module, "load_config", return_value=old),
+                  mock.patch.object(connection_module, "JellyfinClient") as client):
+                store = mock.Mock()
+                with self.assertRaises(ConfigurationError):
+                    configure_connection({"server": server}, store)
+                client.assert_not_called()
+                store.lookup.assert_not_called()
+
+    def test_unbound_secret_is_not_reused(self):
+        with (mock.patch.object(connection_module, "load_config", return_value=None),
+              mock.patch.object(connection_module, "JellyfinClient") as client):
+            with self.assertRaises(ConfigurationError):
+                configure_connection({"server": SAMPLE_CONFIG["server"]}, FakeStore(TOKEN))
+            client.assert_not_called()
+
+    def test_music_only_setup_and_same_server_reauthorization(self):
+        music_id = "9" * 32
+        user = {"Id": USER, "Name": "Listener"}
+        responses = {
+            "/Users/Me": user, "/Users/" + USER: user,
+            "/Users/" + USER + "/Views": {"Items": [
+                {"CollectionType": "music", "Id": music_id, "Name": "Albums"}]},
+            "/System/Info": {"ServerName": "Home"},
+        }
+        store = FakeStore()
+        with (tempfile.TemporaryDirectory() as directory,
+              mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": directory + "/config",
+                                           "XDG_CACHE_HOME": directory + "/cache"}),
+              mock.patch.object(JellyfinClient, "request_json", side_effect=responses.__getitem__)):
+            server = SAMPLE_CONFIG["server"]
+            configure_connection({"server": server, "token": TOKEN}, store)
+            result = configure_connection({"server": server + "/"}, store)
+            self.assertTrue(result["configured"])
+            self.assertEqual(result["connection"]["musicLibraries"], [{"id": music_id, "title": "Albums"}])
+            self.assertEqual(load_config()["musicSectionIds"], [music_id])
+            self.assertEqual(store.token, TOKEN)
+
     def test_failed_connection_test_keeps_existing_settings(self):
         store = FakeStore("existingToken_1234")
         client = mock.Mock()
@@ -188,7 +230,7 @@ class JellyfinConnectionTests(unittest.TestCase):
                     },
                     store,
                 )
-            self.assertEqual(load_config(), SAMPLE_CONFIG)
+            self.assertEqual(load_config(), {**SAMPLE_CONFIG, "musicSectionIds": []})
         self.assertEqual(store.token, "existingToken_1234")
         self.assertEqual(store.stored, [])
 

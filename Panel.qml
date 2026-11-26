@@ -1153,7 +1153,7 @@ Panel {
         Text {
           visible: JellyCore.JellyfinState.initialized && !JellyCore.JellyfinState.configured
           width: parent.width
-          text: "Enter your Jellyfin server and sign in from Connection settings. Movie and show libraries are discovered automatically."
+          text: "Enter your Jellyfin server and sign in from Connection settings. Available libraries are discovered automatically."
           textFormat: Text.PlainText
           color: root.dimForeground
           font.family: root.contentFontFamily

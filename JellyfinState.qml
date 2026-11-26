@@ -30,6 +30,7 @@ Item {
   property string quickConnectCode: ""
   property var movieLibraries: []
   property var seriesLibraries: []
+  property var musicLibraries: []
   property string setupMessage: ""
   property string _statusOutput: ""
   property string _statusError: ""
@@ -143,6 +144,7 @@ Item {
         : (value.authMode === "token" ? "token" : ""))
     movieLibraries = normalizeLibraries(value.movieLibraries)
     seriesLibraries = normalizeLibraries(value.seriesLibraries)
+    musicLibraries = normalizeLibraries(value.musicLibraries || [])
   }
 
   function applyDocument(raw) {
@@ -600,13 +602,6 @@ Item {
   }
 
   Timer {
-    interval: 15 * 60 * 1000
-    repeat: true
-    running: root.configured
-    onTriggered: root.scanLibraries()
-  }
-
-  Timer {
     interval: 2 * 1000
     repeat: true
     running: root.playing || root.playerWindowActive
@@ -816,11 +811,7 @@ Item {
       try {
         if (exitCode !== 0) throw new Error(stderr || "Jellyfin setup failed")
         root.applyDocument(stdout)
-        var movieCount = root.movieLibraries.length
-        var showCount = root.seriesLibraries.length
-        root.setupMessage = "Connected to " + movieCount + " movie "
-          + (movieCount === 1 ? "library" : "libraries") + " and "
-          + showCount + " show " + (showCount === 1 ? "library" : "libraries")
+        root.setupMessage = "Connected to " + (root.connectionName || root.connectionServer)
         root.configurationFinished(true, root.setupMessage)
       } catch (error) {
         root.lastError = root.safeText(stderr || (exitCode === 124
@@ -897,11 +888,7 @@ Item {
         root.applyDocument(stdout)
         root.authenticationState = "idle"
         root.quickConnectCode = ""
-        var movieCount = root.movieLibraries.length
-        var showCount = root.seriesLibraries.length
-        root.setupMessage = "Signed in with Quick Connect · "
-          + movieCount + " movie " + (movieCount === 1 ? "library" : "libraries")
-          + " and " + showCount + " show " + (showCount === 1 ? "library" : "libraries")
+        root.setupMessage = "Connected to " + (root.connectionName || root.connectionServer)
         root.configurationFinished(true, root.setupMessage)
       } catch (error) {
         authPollTimer.stop()

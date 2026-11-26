@@ -111,6 +111,7 @@ def configure_from_env(path: Path, store: SecretStore | None = None) -> dict[str
         {
             "schemaVersion": SCHEMA_VERSION,
             "server": server,
+            "musicSectionIds": [item["id"] for item in libraries if item["type"] == "music"],
             "movieSectionIds": movies,
             "tvSectionIds": shows,
             "userId": user_id,
@@ -128,6 +129,7 @@ def configure_from_env(path: Path, store: SecretStore | None = None) -> dict[str
         "serverName": server_name,
         "movieLibraries": [item for item in libraries if item["id"] in movies],
         "tvLibraries": [item for item in libraries if item["id"] in shows],
+        "musicLibraries": [item for item in libraries if item["type"] == "music"],
         "warning": _http_warning(server),
     }
 
@@ -165,6 +167,7 @@ def connection_info(
             "serverName": "",
             "movieLibraries": [],
             "seriesLibraries": [],
+            "musicLibraries": [],
             "authMode": "",
         }
     values = libraries or []
@@ -186,6 +189,10 @@ def connection_info(
         "serverName": config.get("serverName") or config.get("userName") or "",
         "movieLibraries": movies,
         "seriesLibraries": shows,
+        "musicLibraries": [
+            {"id": item["id"], "title": clean_text(item.get("title"), 128)}
+            for item in values if item.get("type") == "music"
+        ] if values else [{"id": key, "title": ""} for key in config.get("musicSectionIds", [])],
         "authMode": config.get("authMode", AUTH_MODE_TOKEN),
     }
 
@@ -230,6 +237,7 @@ def persist_authenticated_session(
         {
             "schemaVersion": SCHEMA_VERSION,
             "server": server,
+            "musicSectionIds": [item["id"] for item in libraries if item["type"] == "music"],
             "movieSectionIds": movies,
             "tvSectionIds": shows,
             "userId": user_id,
@@ -265,7 +273,6 @@ def configure_connection(
 ) -> dict[str, Any]:
     secret_store = store or SecretStore()
     server = validate_origin(setup["server"])
-    saved_token = secret_store.lookup()
     old_config = load_config()
     client_identifier = (
         old_config["clientIdentifier"] if old_config else new_client_identifier()
@@ -279,7 +286,9 @@ def configure_connection(
         )
         auth_mode = AUTH_MODE_PASSWORD
     else:
-        requested_token = token or saved_token or ""
+        if not token and (not old_config or old_config["server"] != server):
+            raise ConfigurationError("Authorize this server with Quick Connect, a password, or an API key")
+        requested_token = token or secret_store.lookup() or ""
         if not requested_token:
             raise ConfigurationError("Enter a Jellyfin username and password, or an API key")
         token = valid_token(requested_token)

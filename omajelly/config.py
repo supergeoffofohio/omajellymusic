@@ -52,8 +52,9 @@ def validate_config(value: Any) -> dict[str, Any]:
         raise ConfigurationError("Omajelly is not configured")
     movies = section_ids(value.get("movieSectionIds") or [])
     shows = section_ids(value.get("tvSectionIds") or [])
-    if not movies and not shows:
-        raise ConfigurationError("Select at least one movie or TV library")
+    music = section_ids(value.get("musicSectionIds") or [])
+    if not (music or movies or shows):
+        raise ConfigurationError("No accessible music, movie, or TV libraries were found")
     user_id = valid_item_id(value.get("userId"))
     user_name = clean_text(value.get("userName"), 128)
     server_name = clean_text(value.get("serverName"), 128)
@@ -66,6 +67,7 @@ def validate_config(value: Any) -> dict[str, Any]:
     return {
         "schemaVersion": SCHEMA_VERSION,
         "server": validate_origin(value.get("server")),
+        "musicSectionIds": music,
         "movieSectionIds": movies,
         "tvSectionIds": shows,
         "userId": user_id,

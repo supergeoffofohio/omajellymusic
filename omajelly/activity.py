@@ -49,6 +49,12 @@ def recent_snapshot(
     client: JellyfinClient, config: dict[str, Any], now: dt.datetime | None = None
 ) -> dict[str, Any]:
     checked_at = now or utc_now()
+    if config.get("musicSectionIds") and not (config.get("movieSectionIds") or config.get("tvSectionIds")):
+        return {
+            "schemaVersion": SCHEMA_VERSION, "configured": True, "sourceState": "empty",
+            "stale": False, "items": [], "continueItems": [], "movieItems": [],
+            "seriesItems": [], "newCount": 0, "lastSuccessAt": isoformat(checked_at), "error": "",
+        }
     user_id = config["userId"]
     continue_rows = extract_items(
         client.request_json(

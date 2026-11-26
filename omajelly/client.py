@@ -258,7 +258,9 @@ class JellyfinClient:
             if not isinstance(raw, dict):
                 continue
             collection = str(raw.get("CollectionType") or "").lower()
-            if collection == "movies":
+            if collection == "music":
+                kind = "music"
+            elif collection == "movies":
                 kind = "movie"
             elif collection in {"tvshows", "tvshows".lower(), "tv"}:
                 kind = "show"
@@ -273,7 +275,7 @@ class JellyfinClient:
                     "id": key,
                     "type": kind,
                     "title": clean_text(raw.get("Name"), 128)
-                    or ("Movies" if kind == "movie" else "TV Shows"),
+                    or {"music": "Music", "movie": "Movies", "show": "TV Shows"}[kind],
                 }
             )
         return libraries, user["id"], self.fetch_server_name()

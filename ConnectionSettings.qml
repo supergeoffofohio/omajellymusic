@@ -134,6 +134,8 @@ Rectangle {
     var movieNames = movies.map(function(item) { return item.title || "Library " + item.id })
     var seriesNames = series.map(function(item) { return item.title || "Library " + item.id })
     var lines = []
+    var music = JellyCore.JellyfinState.musicLibraries
+    if (music.length) lines.push("Music · " + music.map(function(item) { return item.title || item.id }).join(", "))
     if (movieNames.length) lines.push("Movies · " + movieNames.join(", "))
     if (seriesNames.length) lines.push("Shows · " + seriesNames.join(", "))
     return lines.length ? lines.join("\n") : "Libraries are discovered when the connection is tested."
@@ -351,7 +353,7 @@ Rectangle {
             id: passwordField
             width: parent.width
             placeholderText: JellyCore.JellyfinState.configured
-              ? "Leave blank to keep the saved token" : "Jellyfin password"
+              ? "Leave blank to reuse sign-in for the same server" : "Jellyfin password"
             echoMode: TextInput.Password
             maximumLength: 256
             foreground: root.foreground
@@ -400,7 +402,7 @@ Rectangle {
               id: tokenField
               width: parent.width
               placeholderText: JellyCore.JellyfinState.configured
-                ? "Leave blank to keep the saved token" : "Dashboard → API Keys"
+                ? "Leave blank to reuse sign-in for the same server" : "Dashboard → API Keys"
               echoMode: TextInput.Password
               maximumLength: 8192
               foreground: root.foreground
