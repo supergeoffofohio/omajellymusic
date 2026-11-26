@@ -144,10 +144,8 @@ Panel {
             if (data === "Next") musicPane.jump(musicPane.position + 1)
             else if (data === "Previous") musicPane.jump(musicPane.position - 1)
             else if (data === "Stop") {
-              musicPane.pendingPlay = null
-              musicPane.queue = []
-              musicPane.position = -1
-              musicPane.nowPlaying = false
+              musicPane.pendingQueue = null
+              musicPane.clearQueue()
               if (player.running) player.signal(15)
             }
           }
@@ -155,6 +153,10 @@ Panel {
       }
 
       property bool playlistQueue: false
+
+      property var pendingQueue: null
+      property var activeQueue: null
+      property bool playerReady: false
 
       function beginQueue(all, row) {
         playlistQueue = page.action === "playlist-tracks"
@@ -164,66 +166,48 @@ Panel {
         artwork = rows.length ? (rows[0].cover || "") : ""
         queueOpen = false
         nowPlaying = true
-        jump(0)
+        playerReady = false
+        paused = false
+        position = -1
+        playingTitle = ""
+        message = "Loading…"
+        pendingQueue = queue.map(row => ({id: row.id, coverId: playlistQueue ? row.coverId : ""}))
+        if (player.running) player.signal(15)
+        else startPending()
       }
 
       function jump(index) {
+        if (!playerReady || index < 0 || index >= queue.length) return
+        player.write(JSON.stringify({action: "jump", index: index}) + "\n")
+      }
+
+      function setTrack(index, loaded) {
         if (index < 0 || index >= queue.length) return
-        position = index
-        if (playlistQueue) {
+        if (position !== index && playlistQueue) {
           albumTitle = queue[index].album
           artistName = queue[index].artists.join(", ")
           artwork = ""
         }
+        position = index
+        playingTitle = loaded ? queue[index].name : ""
+        message = loaded ? "" : "Loading…"
+        publishMedia()
+      }
+
+      function clearQueue() {
+        playerReady = false
+        queue = []
+        position = -1
+        nowPlaying = false
+        playingTitle = ""
         paused = false
-        requestPlay("play", queue[index].id, queue[index].name)
-      }
-
-      Process {
-        id: pauseControl
-        command: ["python", musicPane.helper, "play-pause"]
-        onExited: { if (!pauseProbe.running) pauseProbe.running = true }
-      }
-      Process {
-        id: pauseProbe
-        command: ["python", musicPane.helper, "paused"]
-        stdout: StdioCollector {
-          onStreamFinished: { if (text.trim()) musicPane.paused = text.trim() === "true" }
-        }
-      }
-      Timer {
-        interval: 900
-        repeat: true
-        triggeredOnStart: true
-        running: root.opened && musicPane.nowPlaying && player.running
-        onTriggered: { if (!pauseProbe.running) pauseProbe.running = true }
-      }
-
-      property var pendingPlay: null
-      property bool switchingPlayer: false
-
-      function requestPlay(action, key, title) {
-        pendingPlay = {action: action, key: key, title: title}
-        if (switchingPlayer) return
-        if (player.running) {
-          switchingPlayer = true
-          player.signal(15)
-        } else {
-          startPending()
-        }
       }
 
       function startPending() {
-        switchingPlayer = false
-        const next = pendingPlay
-        if (!next) return
-        pendingPlay = null
-        message = ""
-        Qt.callLater(publishMedia)
-        playingTitle = next.title
-        let command = ["python", helper, next.action, next.key]
-        if (playlistQueue) command.push("--cover-id", queue[position].coverId)
-        player.command = command
+        if (!pendingQueue || player.running) return
+        activeQueue = pendingQueue
+        pendingQueue = null
+        player.command = ["python", helper, "play-queue"]
         player.running = true
       }
 
@@ -270,27 +254,35 @@ Panel {
 
       Process {
         id: player
+        stdinEnabled: true
+        onStarted: {
+          if (musicPane.pendingQueue) player.signal(15)
+          else if (musicPane.activeQueue)
+            player.write(JSON.stringify(musicPane.activeQueue) + "\n")
+        }
         stdout: SplitParser {
           onRead: data => {
-            if (!data.trim()) return
-            let result = JSON.parse(data)
-            if (musicPane.playlistQueue && result.track === musicPane.queue[musicPane.position]?.id) {
+            if (!data.trim() || musicPane.pendingQueue || !musicPane.queue.length) return
+            let result
+            try { result = JSON.parse(data) } catch (error) { return }
+            if (result.type === "ready") musicPane.playerReady = true
+            else if (result.type === "loading") musicPane.setTrack(result.index, false)
+            else if (result.type === "track") musicPane.setTrack(result.index, true)
+            else if (result.type === "paused") musicPane.paused = result.value
+            else if (result.type === "cover" && result.index === musicPane.position) {
               musicPane.artwork = result.cover
               musicPane.publishMedia()
             }
           }
         }
         onExited: function(code, status) {
-          musicPane.playingTitle = ""
-          if (musicPane.pendingPlay) {
+          musicPane.playerReady = false
+          musicPane.activeQueue = null
+          if (musicPane.pendingQueue) {
             Qt.callLater(function() { musicPane.startPending() })
-          } else if (code === 0 && musicPane.position + 1 < musicPane.queue.length) {
-            musicPane.jump(musicPane.position + 1)
           } else {
-            musicPane.queue = []
-            musicPane.position = -1
-            musicPane.nowPlaying = false
-            if (code !== 0 && status === 0) musicPane.message = "Playback failed."
+            musicPane.clearQueue()
+            musicPane.message = code !== 0 && status === 0 ? "Playback failed." : ""
           }
         }
       }
@@ -351,11 +343,12 @@ Panel {
               QQC.ToolTip.text: modelData
               QQC.ToolTip.visible: hovered
               QQC.ToolTip.delay: 400
-              enabled: index === 0 ? musicPane.position > 0
-                : index === 2 ? musicPane.position + 1 < musicPane.queue.length : true
+              enabled: index === 0 ? musicPane.playerReady && musicPane.position > 0
+                : index === 1 ? musicPane.playerReady
+                : index === 2 ? musicPane.playerReady && musicPane.position >= 0 && musicPane.position + 1 < musicPane.queue.length : true
               onClicked: {
                 if (index === 0) musicPane.jump(musicPane.position - 1)
-                else if (index === 1 && !pauseControl.running) pauseControl.running = true
+                else if (index === 1 && musicPane.playerReady) player.write(JSON.stringify({action: "toggle"}) + "\n")
                 else if (index === 2) musicPane.jump(musicPane.position + 1)
                 else if (index === 3) musicPane.queueOpen = !musicPane.queueOpen
                 else if (index === 4) musicPane.nowPlaying = false
@@ -462,7 +455,7 @@ Panel {
         visible: text !== ""
         font.family: root.contentFontFamily
         font.pixelSize: Style.font.bodySmall
-        text: musicPane.message || (player.running ? "Playing: " + musicPane.playingTitle : "")
+        text: musicPane.message || (musicPane.playingTitle ? (musicPane.paused ? "Paused: " : "Playing: ") + musicPane.playingTitle : "")
         textFormat: Text.PlainText
         color: root.contentForeground
         width: parent.width

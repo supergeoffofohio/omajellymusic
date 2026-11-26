@@ -71,17 +71,21 @@ def mpv(commands):
                 for line in reader:
                     reply = json.loads(line)
                     if reply.get("request_id") == index:
+                        if reply.get("error") != "success" and command[0] != "get_property":
+                            raise OSError("mpv rejected the command")
                         yield reply.get("data")
                         break
 
 
 def poll():
     try:
-        paused, position = mpv([["get_property", "pause"], ["get_property", "time-pos"]])
-        update({"PlaybackStatus": V("s", "Paused" if paused else "Playing"),
+        paused, idle, position = mpv([["get_property", "pause"], ["get_property", "idle-active"],
+                                      ["get_property", "time-pos"]])
+        status = "Stopped" if idle or position is None else "Paused" if paused else "Playing"
+        update({"PlaybackStatus": V("s", status),
                 "Position": V("x", int((position or 0) * 1_000_000))})
     except (OSError, ValueError):
-        pass
+        update({"PlaybackStatus": V("s", "Stopped"), "Position": V("x", 0)})
     return True
 
 

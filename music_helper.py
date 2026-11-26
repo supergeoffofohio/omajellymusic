@@ -40,11 +40,12 @@ def player_command(read_pause=False):
         raise SystemExit("mpv closed the connection before replying.")
 
 
-def player_arguments():
+def player_arguments(socket_path=None, *, persistent=False):
     return [
         sys.executable, str(Path(__file__).resolve().parent / "omajelly/player_process.py"),
         str(os.getpid()), "mpv", "--no-config", "--no-video", "--really-quiet",
-        "--audio-client-name=OmaJellyMusic", f"--input-ipc-server={control_socket()}", "-",
+        "--audio-client-name=OmaJellyMusic", f"--input-ipc-server={socket_path or control_socket()}",
+        *(["--idle=yes", "--pause=yes"] if persistent else ["-"]),
     ]
 
 
@@ -69,11 +70,15 @@ def play_track(client, item_id):
                 raise
 
 
-def prepare_playback_session():
+def prepare_playback_session(*, graceful=False):
     if os.getpgrp() != os.getpid():
         os.setpgid(0, 0)
 
     def stop_session(signum, frame):
+        if graceful:
+            # Unwind the persistent session so its private socket and proxy are closed.
+            # The launcher still guarantees cleanup if the owner is killed outright.
+            raise SystemExit(0)
         signal.signal(signum, signal.SIG_DFL)
         os.killpg(os.getpid(), signum)
 
@@ -107,20 +112,36 @@ def album_cover(client, album_id):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["playlists", "playlist-tracks", "artists", "albums", "tracks", "play", "play-pause", "paused", "play-album"])
+    parser.add_argument("action", choices=["playlists", "playlist-tracks", "artists", "albums", "tracks", "play", "play-pause", "paused", "play-album", "play-queue"])
     parser.add_argument("item_id", nargs="?")
     parser.add_argument("--cover-id")
     args = parser.parse_args()
-    if args.action in ("play", "play-album"):
-        prepare_playback_session()
+    if args.action in ("play", "play-album", "play-queue"):
+        prepare_playback_session(graceful=args.action == "play-queue")
     if args.action in ("play-pause", "paused"):
         return player_command(read_pause=args.action == "paused")
-    if args.action not in ("artists", "playlists") and not args.item_id:
+    if args.action not in ("artists", "playlists", "play-queue") and not args.item_id:
         parser.error(f"{args.action} requires an item ID")
     item_id = valid_item_id(args.item_id) if args.item_id else None
 
     client, config = client_from_saved()
     user_id = config["userId"]
+
+    if args.action == "play-queue":
+        from omajelly.music_queue import run_queue
+        from omajelly.common import JellyfinError
+        output_lock = threading.Lock()
+
+        def emit(value):
+            with output_lock:
+                print(json.dumps(value), flush=True)
+
+        try:
+            rows = json.loads(sys.stdin.readline(2 * 1024 * 1024))
+            return run_queue(client, rows, sys.stdin, lambda path: player_arguments(path, persistent=True),
+                             control_socket(), emit, lambda key: album_cover(client, key))
+        except (OSError, EOFError, ValueError, RuntimeError, KeyError, TypeError, JellyfinError):
+            return 1
 
     if args.action == "play":
         if args.cover_id:
